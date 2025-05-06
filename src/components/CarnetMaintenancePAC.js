@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Database, FileText, AlertTriangle, CheckCircle, Settings, Calendar, Search, Filter, PlusCircle, Save, Upload } from 'lucide-react';
+import { Database, FileText, AlertTriangle, CheckCircle, Settings, Calendar, Search, 
+         Filter, PlusCircle, Save, Upload, Trash2, RefreshCw } from 'lucide-react';
 
 // Importer le service de données
 import dataService from '../services/DataService';
@@ -32,13 +33,18 @@ const CarnetMaintenancePAC = () => {
   
   // Chargement initial des données
   useEffect(() => {
+    loadAllData();
+  }, []);
+  
+  // Fonction pour charger toutes les données
+  const loadAllData = () => {
     // Charger toutes les machines
     const allMachines = dataService.getAllMachines();
     setMachines(allMachines);
     
     // Charger les statistiques
     setStats(dataService.getStatistics());
-  }, []);
+  };
 
   // Filtrer les machines selon les critères
   const machinesFiltrees = machines.filter(machine => {
@@ -134,6 +140,49 @@ const CarnetMaintenancePAC = () => {
     }
   };
   
+  // Supprimer une intervention
+  const deleteIntervention = (machineId, index) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette intervention ?')) {
+      if (dataService.deleteIntervention(machineId, index)) {
+        // Mettre à jour l'état local des interventions
+        const updatedInterventions = {
+          ...interventions,
+          [machineId]: dataService.getInterventions(machineId)
+        };
+        setInterventions(updatedInterventions);
+        
+        // Mettre à jour la date de dernière vérification dans l'UI
+        const updatedMachine = dataService.getMachineById(machineId);
+        
+        // Mettre à jour la machine sélectionnée si nécessaire
+        if (machineSelectionnee && machineSelectionnee.id === machineId) {
+          setMachineSelectionnee(updatedMachine);
+        }
+        
+        // Mettre à jour la liste des machines
+        setMachines(machines.map(machine => 
+          machine.id === machineId ? updatedMachine : machine
+        ));
+      }
+    }
+  };
+  
+  // Réinitialiser toutes les données
+  const resetAllData = () => {
+    if (window.confirm('Êtes-vous sûr de vouloir réinitialiser toutes les données ? Cette action ne peut pas être annulée.')) {
+      if (dataService.resetAllData()) {
+        // Recharger toutes les données
+        loadAllData();
+        
+        // Réinitialiser la sélection
+        setMachineSelectionnee(null);
+        setInterventions({});
+        
+        alert('Toutes les données ont été réinitialisées avec succès.');
+      }
+    }
+  };
+  
   // Exporter les données
   const handleExport = () => {
     const jsonData = dataService.exportData();
@@ -159,9 +208,7 @@ const CarnetMaintenancePAC = () => {
       const jsonData = e.target.result;
       if (dataService.importData(jsonData)) {
         // Recharger les données après l'import
-        const allMachines = dataService.getAllMachines();
-        setMachines(allMachines);
-        setStats(dataService.getStatistics());
+        loadAllData();
         
         // Réinitialiser la sélection
         setMachineSelectionnee(null);
@@ -203,10 +250,12 @@ const CarnetMaintenancePAC = () => {
               <button 
                 onClick={handleExport}
                 className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded flex items-center text-sm"
+                title="Exporter les données"
               >
                 <Save className="w-4 h-4 mr-1" /> Exporter
               </button>
-              <label className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded flex items-center text-sm cursor-pointer">
+              <label className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded flex items-center text-sm cursor-pointer"
+                     title="Importer des données">
                 <Upload className="w-4 h-4 mr-1" /> Importer
                 <input 
                   type="file" 
@@ -215,6 +264,13 @@ const CarnetMaintenancePAC = () => {
                   onChange={handleImport}
                 />
               </label>
+              <button 
+                onClick={resetAllData}
+                className="bg-red-700 hover:bg-red-800 text-white px-3 py-1 rounded flex items-center text-sm"
+                title="Réinitialiser toutes les données"
+              >
+                <RefreshCw className="w-4 h-4 mr-1" /> Reset
+              </button>
             </div>
           </div>
         </div>
@@ -412,6 +468,7 @@ const CarnetMaintenancePAC = () => {
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Technicien</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -421,6 +478,18 @@ const CarnetMaintenancePAC = () => {
                             <td className="px-4 py-2 whitespace-nowrap text-sm">{intervention.type}</td>
                             <td className="px-4 py-2 text-sm">{intervention.description}</td>
                             <td className="px-4 py-2 whitespace-nowrap text-sm">{intervention.technicien}</td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm">
+                              <button
+                                className="text-red-600 hover:text-red-800"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteIntervention(machineSelectionnee.id, idx);
+                                }}
+                                title="Supprimer cette intervention"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
