@@ -4,6 +4,8 @@
  * Actuellement basé sur localStorage, mais conçu pour faciliter la migration vers une BD
  */
 
+import { formatDateToISO, formatDateToFrench } from '../utils/dateUtils';
+
 // Clé utilisée pour le stockage des machines dans localStorage
 const STORAGE_KEY_MACHINES = 'carnet_maintenance_pac_machines_v2';
 const STORAGE_KEY_INTERVENTIONS = 'carnet_maintenance_pac_interventions_v2';
@@ -46,7 +48,7 @@ class DataService {
       const defaultMachines = allPacIds.map(id => {
         return {
           id,
-          etage: '4', // Toutes sur l'étage 4 comme indiqué
+          etage: id.startsWith('T') ? 'Technique' : '4', // Étage Technique pour les TSGR, sinon étage 4
           etat: 'Non vérifié',
           derniereVerification: '-',
           maintenancePrevue: '-',
@@ -195,16 +197,24 @@ class DataService {
       this.interventions[machineId] = [];
     }
     
+    // Créer une copie de l'intervention
+    const newIntervention = {...intervention};
+    
+    // Convertir la date au format ISO pour le stockage si elle est au format français
+    if (newIntervention.date && newIntervention.date.includes('/')) {
+      newIntervention.date = formatDateToISO(newIntervention.date);
+    }
+    
     // Ajouter l'intervention en haut de la liste (la plus récente en premier)
     this.interventions[machineId] = [
-      intervention,
+      newIntervention,
       ...this.interventions[machineId]
     ];
     
     this._saveInterventions();
     
     // Mettre à jour la date de dernière vérification sur la machine
-    this.updateMachine(machineId, { derniereVerification: intervention.date });
+    this.updateMachine(machineId, { derniereVerification: newIntervention.date });
     
     return true;
   }
@@ -229,6 +239,14 @@ class DataService {
       return false;
     }
     
+    // Créer une copie de l'intervention
+    const newIntervention = {...intervention};
+    
+    // Convertir la date au format ISO pour le stockage si elle est au format français
+    if (newIntervention.date && newIntervention.date.includes('/')) {
+      newIntervention.date = formatDateToISO(newIntervention.date);
+    }
+    
     // Ajouter l'intervention à chaque machine
     for (const machineId of machineIds) {
       if (!this.interventions[machineId]) {
@@ -236,13 +254,13 @@ class DataService {
       }
       
       this.interventions[machineId] = [
-        {...intervention},
+        {...newIntervention},
         ...this.interventions[machineId]
       ];
       
       // Mettre à jour la date de dernière vérification
       this.updateMachine(machineId, { 
-        derniereVerification: intervention.date,
+        derniereVerification: newIntervention.date,
         etat: 'Fonctionnel' // Mettre à jour l'état à Fonctionnel après une maintenance
       });
     }
@@ -355,7 +373,7 @@ class DataService {
     // Réinitialiser les machines à leur état par défaut
     this.machines = allPacIds.map(id => ({
       id,
-      etage: '4',
+      etage: id.startsWith('T') ? 'Technique' : '4', // Étage Technique pour les TSGR, sinon étage 4
       etat: 'Non vérifié',
       derniereVerification: '-',
       maintenancePrevue: '-',
