@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Database, FileText, AlertTriangle, CheckCircle, Settings, Search,
-         Save, Upload, RefreshCw, Tool } from 'lucide-react';
+         Save, Upload, RefreshCw, Wrench } from 'lucide-react';
 
 // Importer le service de données
 import dataService from '../services/DataService';
@@ -374,7 +374,7 @@ const CarnetMaintenancePAC = () => {
                 className={`${showMaintenanceCollective ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-700 hover:bg-blue-800'} text-white px-3 py-1 rounded flex items-center text-sm`}
                 title="Maintenance collective"
               >
-                <Tool className="w-4 h-4 mr-1" /> {showMaintenanceCollective ? 'Annuler maintenance' : 'Maintenance collective'}
+                <Wrench className="w-4 h-4 mr-1" /> {showMaintenanceCollective ? 'Annuler maintenance' : 'Maintenance collective'}
               </button>
               <button 
                 onClick={handleExport}
@@ -534,7 +534,7 @@ const CarnetMaintenancePAC = () => {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
-              <Tool className="w-16 h-16 mb-4" />
+              <Wrench className="w-16 h-16 mb-4" />
               <p>Sélectionnez les machines à inclure dans la maintenance collective</p>
               <p className="mt-2 text-sm text-orange-600">{machinesSelectionnees.length} machine(s) sélectionnée(s)</p>
             </div>
