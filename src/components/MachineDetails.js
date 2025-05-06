@@ -1,6 +1,5 @@
 import React from 'react';
 import { PlusCircle, Trash2 } from 'lucide-react';
-import { formatDateToISO } from '../utils/dateUtils';
 
 /**
  * Composant affichant les détails d'une machine et ses interventions
@@ -16,20 +15,6 @@ const MachineDetails = ({
   onAddIntervention
 }) => {
   if (!machine) return null;
-  
-  // Convertir la date du format français (JJ/MM/AAAA) au format ISO (AAAA-MM-JJ) pour l'input date
-  const handleDateChange = (e) => {
-    setNouvelleIntervention({
-      ...nouvelleIntervention,
-      date: e.target.value.split('-').reverse().join('/')
-    });
-  };
-  
-  // Convertir la date du format français (JJ/MM/AAAA) au format ISO (AAAA-MM-JJ) pour l'affichage
-  const getISODateForInput = (frenchDate) => {
-    if (!frenchDate || frenchDate === '-') return '';
-    return formatDateToISO(frenchDate);
-  };
   
   return (
     <div>
@@ -142,18 +127,16 @@ const MachineDetails = ({
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm text-gray-500 mb-1">Date</label>
-            <div className="relative">
-              <input
-                type="text"
-                className="w-full border rounded p-2"
-                placeholder="JJ/MM/AAAA"
-                value={nouvelleIntervention.date}
-                onChange={(e) => setNouvelleIntervention({
-                  ...nouvelleIntervention,
-                  date: e.target.value
-                })}
-              />
-            </div>
+            <input
+              type="text"
+              className="w-full border rounded p-2"
+              placeholder="JJ/MM/AAAA"
+              value={nouvelleIntervention.date}
+              onChange={(e) => setNouvelleIntervention({
+                ...nouvelleIntervention,
+                date: e.target.value
+              })}
+            />
           </div>
           <div>
             <label className="block text-sm text-gray-500 mb-1">Type</label>
