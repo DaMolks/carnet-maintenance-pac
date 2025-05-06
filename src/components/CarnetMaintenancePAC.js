@@ -330,6 +330,22 @@ const CarnetMaintenancePAC = () => {
       [etage]: !etagesOuverts[etage]
     });
   };
+  
+  // Organiser les machines par étage
+  const machinesParEtage = {};
+  etages.forEach(etage => {
+    machinesParEtage[etage] = machines.filter(machine => machine.etage === etage);
+  });
+
+  // Filtrer les machines selon les critères sélectionnés
+  const machinesFiltrees = machines.filter(machine => {
+    const matchEtage = etageFiltre === 'Tous' || machine.etage === etageFiltre;
+    const matchEtat = etatFiltre === 'Tous' || machine.etat === etatFiltre;
+    const matchSearch = !searchTerm || 
+                      machine.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                      (machine.notes && machine.notes.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchEtage && matchEtat && matchSearch;
+  });
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
