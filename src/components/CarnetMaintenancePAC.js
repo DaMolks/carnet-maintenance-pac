@@ -62,3 +62,92 @@ const CarnetMaintenancePAC = () => {
     
     return completeList;
   });
+  
+  // Filtres et tri
+  const [etageFiltre, setEtageFiltre] = useState('Tous');
+  const [etatFiltre, setEtatFiltre] = useState('Tous');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [machineSelectionnee, setMachineSelectionnee] = useState(null);
+  const [historiqueIntervention, setHistoriqueIntervention] = useState({});
+  const [nouvelleIntervention, setNouvelleIntervention] = useState({
+    date: new Date().toISOString().split('T')[0],
+    type: 'Maintenance',
+    description: '',
+    technicien: ''
+  });
+
+  // Filtrer les machines selon les critères
+  const machinesFiltrees = machines.filter(machine => {
+    const matchEtage = etageFiltre === 'Tous' || machine.etage === etageFiltre;
+    const matchEtat = etatFiltre === 'Tous' || machine.etat === etatFiltre;
+    const matchSearch = !searchTerm || machine.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        (machine.notes && machine.notes.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchEtage && matchEtat && matchSearch;
+  });
+
+  // Regrouper les machines par étage pour l'affichage par onglets
+  const machinesParEtage = {};
+  etages.forEach(etage => {
+    machinesParEtage[etage] = machines.filter(machine => machine.etage === etage);
+  });
+
+  // Gérer la sélection d'une machine
+  const handleMachineSelect = (machine) => {
+    setMachineSelectionnee(machine);
+    
+    // Simuler l'historique des interventions
+    if (!historiqueIntervention[machine.id]) {
+      // Générer un historique factice pour la démo
+      setHistoriqueIntervention({
+        ...historiqueIntervention,
+        [machine.id]: [
+          { date: '2025-01-15', type: 'Installation', description: 'Installation initiale', technicien: 'Martin D.' },
+          { date: '2025-04-01', type: 'Maintenance', description: 'Vérification des filtres', technicien: 'Sophie L.' },
+        ]
+      });
+    }
+  };
+
+  // Mettre à jour l'état d'une machine
+  const updateMachineEtat = (id, nouveauEtat) => {
+    setMachines(machines.map(machine => 
+      machine.id === id ? { ...machine, etat: nouveauEtat } : machine
+    ));
+  };
+
+  // Ajouter une nouvelle intervention
+  const addIntervention = () => {
+    if (machineSelectionnee && nouvelleIntervention.description) {
+      const updatedHistorique = {
+        ...historiqueIntervention,
+        [machineSelectionnee.id]: [
+          nouvelleIntervention,
+          ...(historiqueIntervention[machineSelectionnee.id] || [])
+        ]
+      };
+      
+      setHistoriqueIntervention(updatedHistorique);
+      
+      // Mettre à jour la date de dernière vérification
+      setMachines(machines.map(machine => 
+        machine.id === machineSelectionnee.id ? 
+          { ...machine, derniereVerification: nouvelleIntervention.date } : machine
+      ));
+      
+      // Réinitialiser le formulaire
+      setNouvelleIntervention({
+        date: new Date().toISOString().split('T')[0],
+        type: 'Maintenance',
+        description: '',
+        technicien: ''
+      });
+    }
+  };
+
+  // Statistiques générales
+  const stats = {
+    total: machines.length,
+    fonctionnels: machines.filter(m => m.etat === 'Fonctionnel').length,
+    hs: machines.filter(m => m.etat === 'HS').length,
+    nonVerifies: machines.filter(m => m.etat === 'Non vérifié').length
+  };
