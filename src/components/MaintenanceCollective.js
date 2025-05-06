@@ -1,6 +1,5 @@
 import React from 'react';
 import { Check } from 'lucide-react';
-import { formatDateToISO } from '../utils/dateUtils';
 
 /**
  * Composant pour effectuer une maintenance collective sur plusieurs machines
@@ -14,12 +13,6 @@ const MaintenanceCollective = ({
   onAnnuler
 }) => {
   if (!isActive) return null;
-  
-  // Convertir la date du format français au format ISO pour l'affichage
-  const getISODateForInput = (frenchDate) => {
-    if (!frenchDate || frenchDate === '-') return '';
-    return formatDateToISO(frenchDate);
-  };
   
   return (
     <div className="bg-orange-100 border-orange-300 border-t border-b p-4">
