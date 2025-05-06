@@ -223,9 +223,10 @@ class DataService {
    * Ajoute la même intervention pour plusieurs machines à la fois
    * @param {Array} machineIds Liste des identifiants des machines
    * @param {Object} intervention Données de l'intervention
+   * @param {Array} machinesDetails Liste des machines avec leurs états à mettre à jour (optionnel)
    * @returns {boolean} Succès de l'opération
    */
-  addInterventionToMultipleMachines(machineIds, intervention) {
+  addInterventionToMultipleMachines(machineIds, intervention, machinesDetails = null) {
     if (!Array.isArray(machineIds) || machineIds.length === 0) {
       return false;
     }
@@ -247,6 +248,16 @@ class DataService {
       newIntervention.date = formatDateToISO(newIntervention.date);
     }
     
+    // Créer un Map avec les états personnalisés des machines si fourni
+    const machineStates = new Map();
+    if (machinesDetails && Array.isArray(machinesDetails)) {
+      machinesDetails.forEach(machine => {
+        if (machine.id && machine.newStatus) {
+          machineStates.set(machine.id, machine.newStatus);
+        }
+      });
+    }
+    
     // Ajouter l'intervention à chaque machine
     for (const machineId of machineIds) {
       if (!this.interventions[machineId]) {
@@ -258,10 +269,15 @@ class DataService {
         ...this.interventions[machineId]
       ];
       
-      // Mettre à jour la date de dernière vérification
+      // Déterminer le nouvel état à appliquer
+      const newStatus = machineStates.has(machineId) 
+        ? machineStates.get(machineId) 
+        : 'Fonctionnel'; // Par défaut, mettre à jour l'état à Fonctionnel
+      
+      // Mettre à jour la date de dernière vérification et l'état
       this.updateMachine(machineId, { 
         derniereVerification: newIntervention.date,
-        etat: 'Fonctionnel' // Mettre à jour l'état à Fonctionnel après une maintenance
+        etat: newStatus
       });
     }
     
