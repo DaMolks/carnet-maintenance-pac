@@ -5,6 +5,9 @@ import { Database, FileText, AlertTriangle, CheckCircle, Settings, Search,
 // Importer le service de données
 import dataService from '../services/DataService';
 
+// Importer les utilitaires de date
+import { formatDateToFrench, getTodayFrenchFormat } from '../utils/dateUtils';
+
 // Importer les composants
 import EtageSection from './EtageSection';
 import MachineDetails from './MachineDetails';
@@ -23,7 +26,7 @@ const CarnetMaintenancePAC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [machineSelectionnee, setMachineSelectionnee] = useState(null);
   const [nouvelleIntervention, setNouvelleIntervention] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayFrenchFormat(),
     type: 'Maintenance',
     description: '',
     technicien: ''
@@ -46,7 +49,7 @@ const CarnetMaintenancePAC = () => {
   const [showMaintenanceCollective, setShowMaintenanceCollective] = useState(false);
   const [machinesSelectionnees, setMachinesSelectionnees] = useState([]);
   const [maintenanceCollective, setMaintenanceCollective] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayFrenchFormat(),
     type: 'Maintenance',
     description: 'Maintenance filtres et filtres à tamis + essais de fonctionnement',
     technicien: ''
@@ -68,7 +71,15 @@ const CarnetMaintenancePAC = () => {
   const loadAllData = () => {
     // Charger toutes les machines
     const allMachines = dataService.getAllMachines();
-    setMachines(allMachines);
+    
+    // Convertir les dates des machines au format français
+    const machinesWithFormattedDates = allMachines.map(machine => ({
+      ...machine,
+      derniereVerification: formatDateToFrench(machine.derniereVerification),
+      maintenancePrevue: formatDateToFrench(machine.maintenancePrevue)
+    }));
+    
+    setMachines(machinesWithFormattedDates);
     
     // Charger les statistiques générales
     setStats(dataService.getStatistics());
@@ -101,9 +112,16 @@ const CarnetMaintenancePAC = () => {
       
       // Charger les interventions pour cette machine
       const machineInterventions = dataService.getInterventions(machine.id);
+      
+      // Convertir les dates des interventions au format français
+      const interventionsWithFormattedDates = machineInterventions.map(intervention => ({
+        ...intervention,
+        date: formatDateToFrench(intervention.date)
+      }));
+      
       setInterventions({
         ...interventions,
-        [machine.id]: machineInterventions
+        [machine.id]: interventionsWithFormattedDates
       });
     }
   };
@@ -149,22 +167,37 @@ const CarnetMaintenancePAC = () => {
       // Ajouter via le service de données
       if (dataService.addIntervention(machineSelectionnee.id, nouvelleIntervention)) {
         // Mettre à jour l'état local des interventions
-        const updatedInterventions = {
+        const updatedInterventions = dataService.getInterventions(machineSelectionnee.id);
+        
+        // Convertir les dates des interventions au format français
+        const formattedInterventions = updatedInterventions.map(intervention => ({
+          ...intervention,
+          date: formatDateToFrench(intervention.date)
+        }));
+        
+        setInterventions({
           ...interventions,
-          [machineSelectionnee.id]: dataService.getInterventions(machineSelectionnee.id)
-        };
-        setInterventions(updatedInterventions);
+          [machineSelectionnee.id]: formattedInterventions
+        });
         
         // Mettre à jour la date de dernière vérification dans l'UI
         const updatedMachine = dataService.getMachineById(machineSelectionnee.id);
-        setMachineSelectionnee(updatedMachine);
+        
+        // Convertir les dates au format français
+        const updatedMachineWithFormattedDates = {
+          ...updatedMachine,
+          derniereVerification: formatDateToFrench(updatedMachine.derniereVerification),
+          maintenancePrevue: formatDateToFrench(updatedMachine.maintenancePrevue)
+        };
+        
+        setMachineSelectionnee(updatedMachineWithFormattedDates);
         
         // Mettre à jour la liste des machines et les statistiques
         updateMachinesList();
         
         // Réinitialiser le formulaire
         setNouvelleIntervention({
-          date: new Date().toISOString().split('T')[0],
+          date: getTodayFrenchFormat(),
           type: 'Maintenance',
           description: '',
           technicien: ''
@@ -178,18 +211,32 @@ const CarnetMaintenancePAC = () => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette intervention ?')) {
       if (dataService.deleteIntervention(machineId, index)) {
         // Mettre à jour l'état local des interventions
-        const updatedInterventions = {
+        const updatedInterventions = dataService.getInterventions(machineId);
+        
+        // Convertir les dates des interventions au format français
+        const formattedInterventions = updatedInterventions.map(intervention => ({
+          ...intervention,
+          date: formatDateToFrench(intervention.date)
+        }));
+        
+        setInterventions({
           ...interventions,
-          [machineId]: dataService.getInterventions(machineId)
-        };
-        setInterventions(updatedInterventions);
+          [machineId]: formattedInterventions
+        });
         
         // Mettre à jour la date de dernière vérification dans l'UI
         const updatedMachine = dataService.getMachineById(machineId);
         
+        // Convertir les dates au format français
+        const updatedMachineWithFormattedDates = {
+          ...updatedMachine,
+          derniereVerification: formatDateToFrench(updatedMachine.derniereVerification),
+          maintenancePrevue: formatDateToFrench(updatedMachine.maintenancePrevue)
+        };
+        
         // Mettre à jour la machine sélectionnée si nécessaire
         if (machineSelectionnee && machineSelectionnee.id === machineId) {
-          setMachineSelectionnee(updatedMachine);
+          setMachineSelectionnee(updatedMachineWithFormattedDates);
         }
         
         // Mettre à jour la liste des machines et les statistiques
@@ -220,9 +267,16 @@ const CarnetMaintenancePAC = () => {
     const blob = new Blob([jsonData], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     
+    // Obtenir la date au format français pour le nom du fichier
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    const formattedDate = `${day}-${month}-${year}`;
+    
     const a = document.createElement('a');
     a.href = url;
-    a.download = `carnet-maintenance-pac-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `carnet-maintenance-pac-${formattedDate}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -259,7 +313,15 @@ const CarnetMaintenancePAC = () => {
   // Mettre à jour la liste des machines et les statistiques
   const updateMachinesList = () => {
     const allMachines = dataService.getAllMachines();
-    setMachines(allMachines);
+    
+    // Convertir les dates des machines au format français
+    const machinesWithFormattedDates = allMachines.map(machine => ({
+      ...machine,
+      derniereVerification: formatDateToFrench(machine.derniereVerification),
+      maintenancePrevue: formatDateToFrench(machine.maintenancePrevue)
+    }));
+    
+    setMachines(machinesWithFormattedDates);
     updateStats();
   };
   
@@ -302,7 +364,7 @@ const CarnetMaintenancePAC = () => {
         
         // Réinitialiser le formulaire
         setMaintenanceCollective({
-          date: new Date().toISOString().split('T')[0],
+          date: getTodayFrenchFormat(),
           type: 'Maintenance',
           description: 'Maintenance filtres et filtres à tamis + essais de fonctionnement',
           technicien: ''
