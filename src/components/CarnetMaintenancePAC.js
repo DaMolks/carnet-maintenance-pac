@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Database, FileText, AlertTriangle, CheckCircle, Settings, Calendar, Search, 
-         Filter, PlusCircle, Save, Upload, Trash2, RefreshCw } from 'lucide-react';
+import { Database, FileText, AlertTriangle, CheckCircle, Settings, Search,
+         Save, Upload, RefreshCw, Tool } from 'lucide-react';
 
 // Importer le service de données
 import dataService from '../services/DataService';
+
+// Importer les composants
+import EtageSection from './EtageSection';
+import MachineDetails from './MachineDetails';
+import MaintenanceCollective from './MaintenanceCollective';
 
 // Liste complète des étages disponibles
 const etages = ['4', 'Technique'];
@@ -31,9 +36,32 @@ const CarnetMaintenancePAC = () => {
     nonVerifies: 0
   });
   
+  // État pour les statistiques par étage
+  const [statsByEtage, setStatsByEtage] = useState({});
+  
+  // État pour le menu déroulant par étage
+  const [etagesOuverts, setEtagesOuverts] = useState({});
+  
+  // État pour la maintenance collective
+  const [showMaintenanceCollective, setShowMaintenanceCollective] = useState(false);
+  const [machinesSelectionnees, setMachinesSelectionnees] = useState([]);
+  const [maintenanceCollective, setMaintenanceCollective] = useState({
+    date: new Date().toISOString().split('T')[0],
+    type: 'Maintenance',
+    description: 'Maintenance filtres et filtres à tamis + essais de fonctionnement',
+    technicien: ''
+  });
+  
   // Chargement initial des données
   useEffect(() => {
     loadAllData();
+    
+    // Initialiser tous les étages comme ouverts
+    const initEtagesOuverts = {};
+    etages.forEach(etage => {
+      initEtagesOuverts[etage] = true;
+    });
+    setEtagesOuverts(initEtagesOuverts);
   }, []);
   
   // Fonction pour charger toutes les données
@@ -42,35 +70,42 @@ const CarnetMaintenancePAC = () => {
     const allMachines = dataService.getAllMachines();
     setMachines(allMachines);
     
-    // Charger les statistiques
+    // Charger les statistiques générales
     setStats(dataService.getStatistics());
+    
+    // Charger les statistiques par étage
+    const etageStats = {};
+    etages.forEach(etage => {
+      etageStats[etage] = dataService.getStatisticsByEtage(etage);
+    });
+    setStatsByEtage(etageStats);
   };
-
-  // Filtrer les machines selon les critères
-  const machinesFiltrees = machines.filter(machine => {
-    const matchEtage = etageFiltre === 'Tous' || machine.etage === etageFiltre;
-    const matchEtat = etatFiltre === 'Tous' || machine.etat === etatFiltre;
-    const matchSearch = !searchTerm || machine.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        (machine.notes && machine.notes.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchEtage && matchEtat && matchSearch;
-  });
-
-  // Regrouper les machines par étage pour l'affichage par onglets
-  const machinesParEtage = {};
-  etages.forEach(etage => {
-    machinesParEtage[etage] = machines.filter(machine => machine.etage === etage);
-  });
 
   // Gérer la sélection d'une machine
   const handleMachineSelect = (machine) => {
-    setMachineSelectionnee(machine);
-    
-    // Charger les interventions pour cette machine
-    const machineInterventions = dataService.getInterventions(machine.id);
-    setInterventions({
-      ...interventions,
-      [machine.id]: machineInterventions
-    });
+    // Si nous sommes en mode de sélection multiple pour la maintenance collective
+    if (showMaintenanceCollective) {
+      // Vérifier si la machine est déjà sélectionnée
+      const isSelected = machinesSelectionnees.some(id => id === machine.id);
+      
+      if (isSelected) {
+        // Désélectionner la machine
+        setMachinesSelectionnees(machinesSelectionnees.filter(id => id !== machine.id));
+      } else {
+        // Sélectionner la machine
+        setMachinesSelectionnees([...machinesSelectionnees, machine.id]);
+      }
+    } else {
+      // Mode normal - afficher les détails d'une machine
+      setMachineSelectionnee(machine);
+      
+      // Charger les interventions pour cette machine
+      const machineInterventions = dataService.getInterventions(machine.id);
+      setInterventions({
+        ...interventions,
+        [machine.id]: machineInterventions
+      });
+    }
   };
 
   // Mettre à jour l'état d'une machine
@@ -88,7 +123,7 @@ const CarnetMaintenancePAC = () => {
       }
       
       // Mettre à jour les statistiques
-      setStats(dataService.getStatistics());
+      updateStats();
     }
   };
 
@@ -124,10 +159,8 @@ const CarnetMaintenancePAC = () => {
         const updatedMachine = dataService.getMachineById(machineSelectionnee.id);
         setMachineSelectionnee(updatedMachine);
         
-        // Mettre à jour la liste des machines
-        setMachines(machines.map(machine => 
-          machine.id === machineSelectionnee.id ? updatedMachine : machine
-        ));
+        // Mettre à jour la liste des machines et les statistiques
+        updateMachinesList();
         
         // Réinitialiser le formulaire
         setNouvelleIntervention({
@@ -159,10 +192,8 @@ const CarnetMaintenancePAC = () => {
           setMachineSelectionnee(updatedMachine);
         }
         
-        // Mettre à jour la liste des machines
-        setMachines(machines.map(machine => 
-          machine.id === machineId ? updatedMachine : machine
-        ));
+        // Mettre à jour la liste des machines et les statistiques
+        updateMachinesList();
       }
     }
   };
@@ -224,6 +255,81 @@ const CarnetMaintenancePAC = () => {
     // Réinitialiser l'input file
     event.target.value = '';
   };
+  
+  // Mettre à jour la liste des machines et les statistiques
+  const updateMachinesList = () => {
+    const allMachines = dataService.getAllMachines();
+    setMachines(allMachines);
+    updateStats();
+  };
+  
+  // Mettre à jour les statistiques
+  const updateStats = () => {
+    setStats(dataService.getStatistics());
+    
+    const etageStats = {};
+    etages.forEach(etage => {
+      etageStats[etage] = dataService.getStatisticsByEtage(etage);
+    });
+    setStatsByEtage(etageStats);
+  };
+  
+  // Activer/désactiver le mode de maintenance collective
+  const toggleMaintenanceCollective = () => {
+    setShowMaintenanceCollective(!showMaintenanceCollective);
+    
+    if (showMaintenanceCollective) {
+      // Désactiver le mode et réinitialiser les sélections
+      setMachinesSelectionnees([]);
+    } else {
+      // Si on active le mode, désélectionner la machine courante
+      setMachineSelectionnee(null);
+    }
+  };
+  
+  // Ajouter une intervention de maintenance collective sur plusieurs machines
+  const addMaintenanceCollective = () => {
+    if (machinesSelectionnees.length === 0 || !maintenanceCollective.technicien) {
+      alert('Veuillez sélectionner au moins une machine et renseigner un technicien.');
+      return;
+    }
+    
+    if (window.confirm(`Êtes-vous sûr de vouloir ajouter cette intervention de maintenance sur ${machinesSelectionnees.length} machine(s) ?`)) {
+      // Ajouter l'intervention via le service de données
+      if (dataService.addInterventionToMultipleMachines(machinesSelectionnees, maintenanceCollective)) {
+        // Mettre à jour la liste des machines et les statistiques
+        updateMachinesList();
+        
+        // Réinitialiser le formulaire
+        setMaintenanceCollective({
+          date: new Date().toISOString().split('T')[0],
+          type: 'Maintenance',
+          description: 'Maintenance filtres et filtres à tamis + essais de fonctionnement',
+          technicien: ''
+        });
+        
+        // Désactiver le mode maintenance collective
+        setShowMaintenanceCollective(false);
+        setMachinesSelectionnees([]);
+        
+        alert('Maintenance collective ajoutée avec succès!');
+      }
+    }
+  };
+  
+  // Annuler la maintenance collective
+  const cancelMaintenanceCollective = () => {
+    setShowMaintenanceCollective(false);
+    setMachinesSelectionnees([]);
+  };
+  
+  // Basculer l'état ouvert/fermé d'un étage
+  const toggleEtage = (etage) => {
+    setEtagesOuverts({
+      ...etagesOuverts,
+      [etage]: !etagesOuverts[etage]
+    });
+  };
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
@@ -247,6 +353,13 @@ const CarnetMaintenancePAC = () => {
               </span>
             </div>
             <div className="flex space-x-2">
+              <button 
+                onClick={toggleMaintenanceCollective}
+                className={`${showMaintenanceCollective ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-700 hover:bg-blue-800'} text-white px-3 py-1 rounded flex items-center text-sm`}
+                title="Maintenance collective"
+              >
+                <Tool className="w-4 h-4 mr-1" /> {showMaintenanceCollective ? 'Annuler maintenance' : 'Maintenance collective'}
+              </button>
               <button 
                 onClick={handleExport}
                 className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded flex items-center text-sm"
@@ -320,6 +433,16 @@ const CarnetMaintenancePAC = () => {
         </div>
       </div>
 
+      {/* Module de maintenance collective */}
+      <MaintenanceCollective 
+        isActive={showMaintenanceCollective}
+        machinesSelectionnees={machinesSelectionnees}
+        maintenance={maintenanceCollective}
+        setMaintenance={setMaintenanceCollective}
+        onValider={addMaintenanceCollective}
+        onAnnuler={cancelMaintenanceCollective}
+      />
+
       {/* Contenu principal - Liste et détail */}
       <div className="flex flex-1 overflow-hidden">
         {/* Liste des machines (côté gauche) */}
@@ -327,41 +450,22 @@ const CarnetMaintenancePAC = () => {
           <h2 className="text-lg font-semibold mb-4">Machines PAC</h2>
           
           {etageFiltre === 'Tous' ? (
-            // Affichage groupé par étage
+            // Affichage groupé par étage avec menu déroulant
             etages.map(etage => (
-              <div key={etage} className="mb-4">
-                <h3 className="font-medium text-gray-700 mb-2">Étage {etage}</h3>
-                <div className="space-y-2">
-                  {machinesParEtage[etage]?.filter(machine => {
-                    const matchEtat = etatFiltre === 'Tous' || machine.etat === etatFiltre;
-                    const matchSearch = !searchTerm || machine.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                        (machine.notes && machine.notes.toLowerCase().includes(searchTerm.toLowerCase()));
-                    return matchEtat && matchSearch;
-                  }).map(machine => (
-                    <div 
-                      key={machine.id}
-                      className={`p-2 border rounded cursor-pointer transition hover:bg-gray-50 ${
-                        machineSelectionnee?.id === machine.id ? 'bg-blue-50 border-blue-300' : ''
-                      }`}
-                      onClick={() => handleMachineSelect(machine)}
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{machine.id}</span>
-                        <span className={`text-sm px-2 py-0.5 rounded ${
-                          machine.etat === 'Fonctionnel' ? 'bg-green-100 text-green-800' :
-                          machine.etat === 'HS' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {machine.etat}
-                        </span>
-                      </div>
-                      {machine.notes && (
-                        <p className="text-sm text-gray-600 mt-1 truncate">{machine.notes}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <EtageSection 
+                key={etage}
+                etage={etage}
+                machines={machinesParEtage[etage] || []}
+                stats={statsByEtage[etage]}
+                isOpen={etagesOuverts[etage]}
+                onToggle={() => toggleEtage(etage)}
+                etatFiltre={etatFiltre}
+                searchTerm={searchTerm}
+                onMachineSelect={handleMachineSelect}
+                selectedMachineId={machineSelectionnee?.id}
+                multiSelectionMode={showMaintenanceCollective}
+                selectedMachines={machinesSelectionnees}
+              />
             ))
           ) : (
             // Affichage des résultats filtrés sans regroupement
@@ -370,7 +474,8 @@ const CarnetMaintenancePAC = () => {
                 <div 
                   key={machine.id}
                   className={`p-2 border rounded cursor-pointer transition hover:bg-gray-50 ${
-                    machineSelectionnee?.id === machine.id ? 'bg-blue-50 border-blue-300' : ''
+                    (machineSelectionnee?.id === machine.id ? 'bg-blue-50 border-blue-300' : '') ||
+                    (machinesSelectionnees.includes(machine.id) ? 'bg-orange-50 border-orange-300' : '')
                   }`}
                   onClick={() => handleMachineSelect(machine)}
                 >
@@ -395,182 +500,27 @@ const CarnetMaintenancePAC = () => {
         
         {/* Détail de la machine (côté droit) */}
         <div className="flex-1 overflow-auto p-4">
-          {machineSelectionnee ? (
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">{machineSelectionnee.id}</h2>
-                <div className="flex space-x-2">
-                  <button 
-                    className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                    onClick={() => updateMachineEtat(machineSelectionnee.id, 'Fonctionnel')}
-                  >
-                    Marquer Fonctionnel
-                  </button>
-                  <button 
-                    className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                    onClick={() => updateMachineEtat(machineSelectionnee.id, 'HS')}
-                  >
-                    Marquer HS
-                  </button>
-                </div>
-              </div>
-              
-              {/* Informations générales */}
-              <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-                <h3 className="text-lg font-medium mb-2">Informations générales</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Étage</p>
-                    <p>{machineSelectionnee.etage}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">État actuel</p>
-                    <p className={`font-medium ${
-                      machineSelectionnee.etat === 'Fonctionnel' ? 'text-green-600' :
-                      machineSelectionnee.etat === 'HS' ? 'text-red-600' :
-                      'text-gray-600'
-                    }`}>
-                      {machineSelectionnee.etat}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Dernière vérification</p>
-                    <p>{machineSelectionnee.derniereVerification}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Maintenance prévue</p>
-                    <p>{machineSelectionnee.maintenancePrevue}</p>
-                  </div>
-                </div>
-                
-                {/* Notes */}
-                <div className="mt-4">
-                  <p className="text-sm text-gray-500 mb-1">Notes</p>
-                  <textarea
-                    className="w-full border rounded p-2"
-                    rows="2"
-                    value={machineSelectionnee.notes}
-                    onChange={(e) => updateMachineNotes(machineSelectionnee.id, e.target.value)}
-                  />
-                </div>
-              </div>
-              
-              {/* Historique des interventions */}
-              <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-                <h3 className="text-lg font-medium mb-2">Historique des interventions</h3>
-                
-                {interventions[machineSelectionnee.id]?.length > 0 ? (
-                  <div className="overflow-auto max-h-48">
-                    <table className="min-w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Technicien</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {interventions[machineSelectionnee.id].map((intervention, idx) => (
-                          <tr key={idx}>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm">{intervention.date}</td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm">{intervention.type}</td>
-                            <td className="px-4 py-2 text-sm">{intervention.description}</td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm">{intervention.technicien}</td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm">
-                              <button
-                                className="text-red-600 hover:text-red-800"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteIntervention(machineSelectionnee.id, idx);
-                                }}
-                                title="Supprimer cette intervention"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-gray-500 italic">Aucune intervention enregistrée</p>
-                )}
-              </div>
-              
-              {/* Formulaire nouvelle intervention */}
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <h3 className="text-lg font-medium mb-2">Ajouter une intervention</h3>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">Date</label>
-                    <input
-                      type="date"
-                      className="w-full border rounded p-2"
-                      value={nouvelleIntervention.date}
-                      onChange={(e) => setNouvelleIntervention({
-                        ...nouvelleIntervention,
-                        date: e.target.value
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">Type</label>
-                    <select
-                      className="w-full border rounded p-2"
-                      value={nouvelleIntervention.type}
-                      onChange={(e) => setNouvelleIntervention({
-                        ...nouvelleIntervention,
-                        type: e.target.value
-                      })}
-                    >
-                      <option>Maintenance</option>
-                      <option>Réparation</option>
-                      <option>Inspection</option>
-                      <option>Remplacement</option>
-                    </select>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm text-gray-500 mb-1">Description</label>
-                    <textarea
-                      className="w-full border rounded p-2"
-                      rows="2"
-                      value={nouvelleIntervention.description}
-                      onChange={(e) => setNouvelleIntervention({
-                        ...nouvelleIntervention,
-                        description: e.target.value
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">Technicien</label>
-                    <input
-                      type="text"
-                      className="w-full border rounded p-2"
-                      value={nouvelleIntervention.technicien}
-                      onChange={(e) => setNouvelleIntervention({
-                        ...nouvelleIntervention,
-                        technicien: e.target.value
-                      })}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <button
-                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"
-                      onClick={addIntervention}
-                    >
-                      <PlusCircle className="w-4 h-4 mr-1" /> Ajouter
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
+          {machineSelectionnee && !showMaintenanceCollective ? (
+            <MachineDetails 
+              machine={machineSelectionnee}
+              interventions={interventions[machineSelectionnee.id] || []}
+              onUpdateEtat={updateMachineEtat}
+              onUpdateNotes={updateMachineNotes}
+              onDeleteIntervention={deleteIntervention}
+              nouvelleIntervention={nouvelleIntervention}
+              setNouvelleIntervention={setNouvelleIntervention}
+              onAddIntervention={addIntervention}
+            />
+          ) : !showMaintenanceCollective ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
               <FileText className="w-16 h-16 mb-4" />
               <p>Sélectionnez une machine pour afficher ses détails</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <Tool className="w-16 h-16 mb-4" />
+              <p>Sélectionnez les machines à inclure dans la maintenance collective</p>
+              <p className="mt-2 text-sm text-orange-600">{machinesSelectionnees.length} machine(s) sélectionnée(s)</p>
             </div>
           )}
         </div>
