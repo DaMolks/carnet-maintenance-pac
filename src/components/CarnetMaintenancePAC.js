@@ -12,6 +12,7 @@ import { formatDateToFrench, getTodayFrenchFormat } from '../utils/dateUtils';
 import EtageSection from './EtageSection';
 import MachineDetails from './MachineDetails';
 import MaintenanceCollective from './MaintenanceCollective';
+import MaintenanceCollectiveDetail from './MaintenanceCollectiveDetail';
 
 // Liste complète des étages disponibles
 const etages = ['4', 'Technique'];
@@ -47,6 +48,7 @@ const CarnetMaintenancePAC = () => {
   
   // État pour la maintenance collective
   const [showMaintenanceCollective, setShowMaintenanceCollective] = useState(false);
+  const [showMaintenanceCollectiveDetail, setShowMaintenanceCollectiveDetail] = useState(false);
   const [machinesSelectionnees, setMachinesSelectionnees] = useState([]);
   const [maintenanceCollective, setMaintenanceCollective] = useState({
     date: getTodayFrenchFormat(),
@@ -336,52 +338,67 @@ const CarnetMaintenancePAC = () => {
     setStatsByEtage(etageStats);
   };
   
-  // Activer/désactiver le mode de maintenance collective
+  // Activer le mode de maintenance collective simplifié
   const toggleMaintenanceCollective = () => {
-    setShowMaintenanceCollective(!showMaintenanceCollective);
+    // Si nous sommes déjà en mode maintenance collective détaillée, tout désactiver
+    if (showMaintenanceCollectiveDetail) {
+      setShowMaintenanceCollectiveDetail(false);
+      setMachinesSelectionnees([]);
+      return;
+    }
     
+    // Si nous sommes en mode maintenance collective simple, le désactiver
     if (showMaintenanceCollective) {
-      // Désactiver le mode et réinitialiser les sélections
+      setShowMaintenanceCollective(false);
       setMachinesSelectionnees([]);
     } else {
-      // Si on active le mode, désélectionner la machine courante
+      // Sinon, ouvrir directement l'écran de maintenance collective détaillée
+      setShowMaintenanceCollectiveDetail(true);
       setMachineSelectionnee(null);
     }
   };
   
-  // Ajouter une intervention de maintenance collective sur plusieurs machines
-  const addMaintenanceCollective = () => {
-    if (machinesSelectionnees.length === 0 || !maintenanceCollective.technicien) {
-      alert('Veuillez sélectionner au moins une machine et renseigner un technicien.');
+  // Annuler la maintenance collective (mode simple)
+  const cancelMaintenanceCollective = () => {
+    setShowMaintenanceCollective(false);
+    setMachinesSelectionnees([]);
+  };
+  
+  // Traiter la validation de la maintenance collective détaillée
+  const handleMaintenanceCollectiveDetailSubmit = (data) => {
+    // Vérifier qu'il y a des machines sélectionnées
+    if (data.machines.length === 0) {
+      alert('Aucune machine sélectionnée.');
       return;
     }
     
-    if (window.confirm(`Êtes-vous sûr de vouloir ajouter cette intervention de maintenance sur ${machinesSelectionnees.length} machine(s) ?`)) {
-      // Ajouter l'intervention via le service de données
-      if (dataService.addInterventionToMultipleMachines(machinesSelectionnees, maintenanceCollective)) {
-        // Mettre à jour la liste des machines et les statistiques
-        updateMachinesList();
-        
-        // Réinitialiser le formulaire
-        setMaintenanceCollective({
-          date: getTodayFrenchFormat(),
-          type: 'Maintenance',
-          description: 'Maintenance filtres et filtres à tamis + essais de fonctionnement',
-          technicien: ''
-        });
-        
-        // Désactiver le mode maintenance collective
-        setShowMaintenanceCollective(false);
-        setMachinesSelectionnees([]);
-        
-        alert('Maintenance collective ajoutée avec succès!');
-      }
+    // Préparer les données pour le traitement
+    const machineIds = data.machines.map(m => m.id);
+    
+    // Ajouter l'intervention via le service de données
+    if (dataService.addInterventionToMultipleMachines(machineIds, data.intervention, data.machines)) {
+      // Mettre à jour la liste des machines et les statistiques
+      updateMachinesList();
+      
+      // Réinitialiser le formulaire et désactiver le mode maintenance collective
+      setMaintenanceCollective({
+        date: getTodayFrenchFormat(),
+        type: 'Maintenance',
+        description: 'Maintenance filtres et filtres à tamis + essais de fonctionnement',
+        technicien: ''
+      });
+      
+      // Désactiver le mode maintenance collective détaillée
+      setShowMaintenanceCollectiveDetail(false);
+      setMachinesSelectionnees([]);
+      
+      alert('Maintenance collective ajoutée avec succès!');
     }
   };
   
-  // Annuler la maintenance collective
-  const cancelMaintenanceCollective = () => {
-    setShowMaintenanceCollective(false);
+  // Fermer l'écran de maintenance collective détaillée
+  const handleMaintenanceCollectiveDetailReturn = () => {
+    setShowMaintenanceCollectiveDetail(false);
     setMachinesSelectionnees([]);
   };
   
@@ -409,6 +426,19 @@ const CarnetMaintenancePAC = () => {
     return matchEtage && matchEtat && matchSearch;
   });
 
+  // Si le mode de maintenance collective détaillée est activé, afficher cet écran
+  if (showMaintenanceCollectiveDetail) {
+    return (
+      <MaintenanceCollectiveDetail 
+        machines={machines}
+        etages={etages}
+        onReturn={handleMaintenanceCollectiveDetailReturn}
+        onSubmit={handleMaintenanceCollectiveDetailSubmit}
+        interventionBase={maintenanceCollective}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* En-tête */}
@@ -433,10 +463,10 @@ const CarnetMaintenancePAC = () => {
             <div className="flex space-x-2">
               <button 
                 onClick={toggleMaintenanceCollective}
-                className={`${showMaintenanceCollective ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-700 hover:bg-blue-800'} text-white px-3 py-1 rounded flex items-center text-sm`}
+                className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded flex items-center text-sm"
                 title="Maintenance collective"
               >
-                <Wrench className="w-4 h-4 mr-1" /> {showMaintenanceCollective ? 'Annuler maintenance' : 'Maintenance collective'}
+                <Wrench className="w-4 h-4 mr-1" /> Maintenance collective
               </button>
               <button 
                 onClick={handleExport}
@@ -511,16 +541,6 @@ const CarnetMaintenancePAC = () => {
         </div>
       </div>
 
-      {/* Module de maintenance collective */}
-      <MaintenanceCollective 
-        isActive={showMaintenanceCollective}
-        machinesSelectionnees={machinesSelectionnees}
-        maintenance={maintenanceCollective}
-        setMaintenance={setMaintenanceCollective}
-        onValider={addMaintenanceCollective}
-        onAnnuler={cancelMaintenanceCollective}
-      />
-
       {/* Contenu principal - Liste et détail */}
       <div className="flex flex-1 overflow-hidden">
         {/* Liste des machines (côté gauche) */}
@@ -578,7 +598,7 @@ const CarnetMaintenancePAC = () => {
         
         {/* Détail de la machine (côté droit) */}
         <div className="flex-1 overflow-auto p-4">
-          {machineSelectionnee && !showMaintenanceCollective ? (
+          {machineSelectionnee ? (
             <MachineDetails 
               machine={machineSelectionnee}
               interventions={interventions[machineSelectionnee.id] || []}
@@ -589,16 +609,10 @@ const CarnetMaintenancePAC = () => {
               setNouvelleIntervention={setNouvelleIntervention}
               onAddIntervention={addIntervention}
             />
-          ) : !showMaintenanceCollective ? (
+          ) : (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
               <FileText className="w-16 h-16 mb-4" />
               <p>Sélectionnez une machine pour afficher ses détails</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-              <Wrench className="w-16 h-16 mb-4" />
-              <p>Sélectionnez les machines à inclure dans la maintenance collective</p>
-              <p className="mt-2 text-sm text-orange-600">{machinesSelectionnees.length} machine(s) sélectionnée(s)</p>
             </div>
           )}
         </div>
