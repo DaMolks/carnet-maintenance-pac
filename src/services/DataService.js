@@ -4,7 +4,7 @@
  * Actuellement basé sur localStorage, mais conçu pour faciliter la migration vers une BD
  */
 
-import { formatDateToISO, formatDateToFrench } from '../utils/dateUtils';
+import { formatDateToISO } from '../utils/dateUtils';
 
 // Clé utilisée pour le stockage des machines dans localStorage
 const STORAGE_KEY_MACHINES = 'carnet_maintenance_pac_machines_v2';
