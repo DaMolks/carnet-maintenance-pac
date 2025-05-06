@@ -19,24 +19,6 @@ const allPacIds = [
   'TSGR1', 'TSGR2', 'TSGR3', 'TSGR4'
 ];
 
-// Quelques données initiales pour démonstration
-const initialMachines = [
-  { id: 'A0401', etage: '4', etat: 'Fonctionnel', derniereVerification: '2025-04-15', maintenancePrevue: '2025-07-15', notes: 'RAS' },
-  { id: 'A0402', etage: '4', etat: 'Fonctionnel', derniereVerification: '2025-04-15', maintenancePrevue: '2025-07-15', notes: 'Filtre à changer prochainement' },
-  { id: 'A0403', etage: '4', etat: 'Fonctionnel', derniereVerification: '2025-04-16', maintenancePrevue: '2025-07-16', notes: 'RAS' },
-  { id: 'A0401b', etage: '4', etat: 'HS', derniereVerification: '2025-04-16', maintenancePrevue: '2025-05-20', notes: 'Panne compresseur - Pièce commandée' }
-];
-
-const initialInterventions = {
-  'A0401': [
-    { date: '2025-01-15', type: 'Installation', description: 'Installation initiale', technicien: 'Martin D.' },
-    { date: '2025-04-01', type: 'Maintenance', description: 'Vérification des filtres', technicien: 'Sophie L.' }
-  ],
-  'A0402': [
-    { date: '2025-01-15', type: 'Installation', description: 'Installation initiale', technicien: 'Martin D.' }
-  ]
-};
-
 class DataService {
   /**
    * Initialise le service de données et charge les données depuis le stockage
@@ -60,16 +42,8 @@ class DataService {
       }
       
       // Si aucune donnée n'existe, initialiser avec la liste complète des machines
-      // Toutes sur l'étage 4 comme indiqué
+      // Toutes sur l'étage 4 comme indiqué, sans exemples pré-remplis
       const defaultMachines = allPacIds.map(id => {
-        // Vérifier si une machine initiale existe avec cet ID
-        const initialMachine = initialMachines.find(m => m.id === id);
-        
-        if (initialMachine) {
-          return initialMachine;
-        }
-        
-        // Sinon, créer une nouvelle entrée avec l'étage 4 par défaut
         return {
           id,
           etage: '4', // Toutes sur l'étage 4 comme indiqué
@@ -91,7 +65,7 @@ class DataService {
   }
 
   /**
-   * Charge les interventions depuis le localStorage ou initialise avec des données par défaut
+   * Charge les interventions depuis le localStorage ou initialise avec un objet vide
    * @returns {Object} Interventions indexées par ID de machine
    */
   _loadInterventions() {
@@ -102,10 +76,10 @@ class DataService {
         return JSON.parse(storedInterventions);
       }
       
-      // Si aucune donnée n'existe, initialiser avec les interventions par défaut
-      localStorage.setItem(STORAGE_KEY_INTERVENTIONS, JSON.stringify(initialInterventions));
+      // Si aucune donnée n'existe, initialiser avec un objet vide (pas d'exemples)
+      localStorage.setItem(STORAGE_KEY_INTERVENTIONS, JSON.stringify({}));
       
-      return { ...initialInterventions };
+      return {};
     } catch (error) {
       console.error('Erreur lors du chargement des interventions:', error);
       return {};
@@ -213,6 +187,37 @@ class DataService {
   }
 
   /**
+   * Supprime une intervention spécifique pour une machine
+   * @param {string} machineId Identifiant de la machine
+   * @param {number} index Index de l'intervention à supprimer
+   * @returns {boolean} Succès de l'opération
+   */
+  deleteIntervention(machineId, index) {
+    if (!this.interventions[machineId] || index >= this.interventions[machineId].length) {
+      return false;
+    }
+    
+    // Supprimer l'intervention à l'index spécifié
+    this.interventions[machineId].splice(index, 1);
+    
+    // Si c'était la dernière intervention, mettre à jour la date de dernière vérification
+    if (this.interventions[machineId].length > 0) {
+      this.updateMachine(machineId, { 
+        derniereVerification: this.interventions[machineId][0].date 
+      });
+    } else {
+      // S'il n'y a plus d'interventions, réinitialiser la date de dernière vérification
+      this.updateMachine(machineId, { derniereVerification: '-' });
+      
+      // Si le tableau d'interventions est vide, supprimer l'entrée
+      delete this.interventions[machineId];
+    }
+    
+    this._saveInterventions();
+    return true;
+  }
+
+  /**
    * Obtient des statistiques sur l'état des machines
    * @returns {Object} Statistiques des machines
    */
@@ -260,6 +265,30 @@ class DataService {
       console.error('Erreur lors de l\'importation des données:', error);
       return false;
     }
+  }
+
+  /**
+   * Réinitialise toutes les données (pour un reset complet)
+   */
+  resetAllData() {
+    // Réinitialiser les machines à leur état par défaut
+    this.machines = allPacIds.map(id => ({
+      id,
+      etage: '4',
+      etat: 'Non vérifié',
+      derniereVerification: '-',
+      maintenancePrevue: '-',
+      notes: ''
+    }));
+    
+    // Réinitialiser les interventions
+    this.interventions = {};
+    
+    // Sauvegarder les changements
+    this._saveMachines();
+    this._saveInterventions();
+    
+    return true;
   }
 }
 
