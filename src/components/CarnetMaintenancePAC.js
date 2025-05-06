@@ -11,7 +11,6 @@ import { formatDateToFrench, getTodayFrenchFormat } from '../utils/dateUtils';
 // Importer les composants
 import EtageSection from './EtageSection';
 import MachineDetails from './MachineDetails';
-import MaintenanceCollective from './MaintenanceCollective';
 import MaintenanceCollectiveDetail from './MaintenanceCollectiveDetail';
 
 // Liste complète des étages disponibles
@@ -47,7 +46,6 @@ const CarnetMaintenancePAC = () => {
   const [etagesOuverts, setEtagesOuverts] = useState({});
   
   // État pour la maintenance collective
-  const [showMaintenanceCollective, setShowMaintenanceCollective] = useState(false);
   const [showMaintenanceCollectiveDetail, setShowMaintenanceCollectiveDetail] = useState(false);
   const [machinesSelectionnees, setMachinesSelectionnees] = useState([]);
   const [maintenanceCollective, setMaintenanceCollective] = useState({
@@ -96,36 +94,22 @@ const CarnetMaintenancePAC = () => {
 
   // Gérer la sélection d'une machine
   const handleMachineSelect = (machine) => {
-    // Si nous sommes en mode de sélection multiple pour la maintenance collective
-    if (showMaintenanceCollective) {
-      // Vérifier si la machine est déjà sélectionnée
-      const isSelected = machinesSelectionnees.some(id => id === machine.id);
-      
-      if (isSelected) {
-        // Désélectionner la machine
-        setMachinesSelectionnees(machinesSelectionnees.filter(id => id !== machine.id));
-      } else {
-        // Sélectionner la machine
-        setMachinesSelectionnees([...machinesSelectionnees, machine.id]);
-      }
-    } else {
-      // Mode normal - afficher les détails d'une machine
-      setMachineSelectionnee(machine);
-      
-      // Charger les interventions pour cette machine
-      const machineInterventions = dataService.getInterventions(machine.id);
-      
-      // Convertir les dates des interventions au format français
-      const interventionsWithFormattedDates = machineInterventions.map(intervention => ({
-        ...intervention,
-        date: formatDateToFrench(intervention.date)
-      }));
-      
-      setInterventions({
-        ...interventions,
-        [machine.id]: interventionsWithFormattedDates
-      });
-    }
+    // Mode normal - afficher les détails d'une machine
+    setMachineSelectionnee(machine);
+    
+    // Charger les interventions pour cette machine
+    const machineInterventions = dataService.getInterventions(machine.id);
+    
+    // Convertir les dates des interventions au format français
+    const interventionsWithFormattedDates = machineInterventions.map(intervention => ({
+      ...intervention,
+      date: formatDateToFrench(intervention.date)
+    }));
+    
+    setInterventions({
+      ...interventions,
+      [machine.id]: interventionsWithFormattedDates
+    });
   };
 
   // Mettre à jour l'état d'une machine
@@ -338,7 +322,7 @@ const CarnetMaintenancePAC = () => {
     setStatsByEtage(etageStats);
   };
   
-  // Activer le mode de maintenance collective simplifié
+  // Activer le mode de maintenance collective détaillée
   const toggleMaintenanceCollective = () => {
     // Si nous sommes déjà en mode maintenance collective détaillée, tout désactiver
     if (showMaintenanceCollectiveDetail) {
@@ -347,21 +331,9 @@ const CarnetMaintenancePAC = () => {
       return;
     }
     
-    // Si nous sommes en mode maintenance collective simple, le désactiver
-    if (showMaintenanceCollective) {
-      setShowMaintenanceCollective(false);
-      setMachinesSelectionnees([]);
-    } else {
-      // Sinon, ouvrir directement l'écran de maintenance collective détaillée
-      setShowMaintenanceCollectiveDetail(true);
-      setMachineSelectionnee(null);
-    }
-  };
-  
-  // Annuler la maintenance collective (mode simple)
-  const cancelMaintenanceCollective = () => {
-    setShowMaintenanceCollective(false);
-    setMachinesSelectionnees([]);
+    // Sinon, ouvrir directement l'écran de maintenance collective détaillée
+    setShowMaintenanceCollectiveDetail(true);
+    setMachineSelectionnee(null);
   };
   
   // Traiter la validation de la maintenance collective détaillée
@@ -561,8 +533,8 @@ const CarnetMaintenancePAC = () => {
                 searchTerm={searchTerm}
                 onMachineSelect={handleMachineSelect}
                 selectedMachineId={machineSelectionnee?.id}
-                multiSelectionMode={showMaintenanceCollective}
-                selectedMachines={machinesSelectionnees}
+                multiSelectionMode={false}
+                selectedMachines={[]}
               />
             ))
           ) : (
@@ -572,8 +544,7 @@ const CarnetMaintenancePAC = () => {
                 <div 
                   key={machine.id}
                   className={`p-2 border rounded cursor-pointer transition hover:bg-gray-50 ${
-                    (machineSelectionnee?.id === machine.id ? 'bg-blue-50 border-blue-300' : '') ||
-                    (machinesSelectionnees.includes(machine.id) ? 'bg-orange-50 border-orange-300' : '')
+                    machineSelectionnee?.id === machine.id ? 'bg-blue-50 border-blue-300' : ''
                   }`}
                   onClick={() => handleMachineSelect(machine)}
                 >
