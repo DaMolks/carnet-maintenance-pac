@@ -5,8 +5,8 @@
  */
 
 // Clé utilisée pour le stockage des machines dans localStorage
-const STORAGE_KEY_MACHINES = 'carnet_maintenance_pac_machines';
-const STORAGE_KEY_INTERVENTIONS = 'carnet_maintenance_pac_interventions';
+const STORAGE_KEY_MACHINES = 'carnet_maintenance_pac_machines_v2';
+const STORAGE_KEY_INTERVENTIONS = 'carnet_maintenance_pac_interventions_v2';
 
 // Liste de tous les identifiants de PAC (tous sur l'étage 4 comme indiqué)
 const allPacIds = [
@@ -149,6 +149,29 @@ class DataService {
   }
 
   /**
+   * Met à jour plusieurs machines à la fois
+   * @param {Array} ids Liste des identifiants des machines à mettre à jour
+   * @param {Object} updatedData Nouvelles données partielles
+   * @returns {boolean} Succès de l'opération
+   */
+  updateMultipleMachines(ids, updatedData) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return false;
+    }
+    
+    // Mettre à jour chaque machine
+    let success = true;
+    for (const id of ids) {
+      const result = this.updateMachine(id, updatedData);
+      if (!result) {
+        success = false;
+      }
+    }
+    
+    return success;
+  }
+
+  /**
    * Récupère les interventions pour une machine spécifique
    * @param {string} machineId Identifiant de la machine
    * @returns {Array} Liste des interventions ou tableau vide si aucune
@@ -183,6 +206,48 @@ class DataService {
     // Mettre à jour la date de dernière vérification sur la machine
     this.updateMachine(machineId, { derniereVerification: intervention.date });
     
+    return true;
+  }
+  
+  /**
+   * Ajoute la même intervention pour plusieurs machines à la fois
+   * @param {Array} machineIds Liste des identifiants des machines
+   * @param {Object} intervention Données de l'intervention
+   * @returns {boolean} Succès de l'opération
+   */
+  addInterventionToMultipleMachines(machineIds, intervention) {
+    if (!Array.isArray(machineIds) || machineIds.length === 0) {
+      return false;
+    }
+    
+    // Vérifier que toutes les machines existent
+    const allMachinesExist = machineIds.every(id => 
+      this.machines.some(machine => machine.id === id)
+    );
+    
+    if (!allMachinesExist) {
+      return false;
+    }
+    
+    // Ajouter l'intervention à chaque machine
+    for (const machineId of machineIds) {
+      if (!this.interventions[machineId]) {
+        this.interventions[machineId] = [];
+      }
+      
+      this.interventions[machineId] = [
+        {...intervention},
+        ...this.interventions[machineId]
+      ];
+      
+      // Mettre à jour la date de dernière vérification
+      this.updateMachine(machineId, { 
+        derniereVerification: intervention.date,
+        etat: 'Fonctionnel' // Mettre à jour l'état à Fonctionnel après une maintenance
+      });
+    }
+    
+    this._saveInterventions();
     return true;
   }
 
@@ -227,6 +292,22 @@ class DataService {
       fonctionnels: this.machines.filter(m => m.etat === 'Fonctionnel').length,
       hs: this.machines.filter(m => m.etat === 'HS').length,
       nonVerifies: this.machines.filter(m => m.etat === 'Non vérifié').length
+    };
+  }
+  
+  /**
+   * Obtient des statistiques pour un étage spécifique
+   * @param {string} etage L'étage pour lequel obtenir les statistiques
+   * @returns {Object} Statistiques des machines pour cet étage
+   */
+  getStatisticsByEtage(etage) {
+    const machinesEtage = this.machines.filter(m => m.etage === etage);
+    
+    return {
+      total: machinesEtage.length,
+      fonctionnels: machinesEtage.filter(m => m.etat === 'Fonctionnel').length,
+      hs: machinesEtage.filter(m => m.etat === 'HS').length,
+      nonVerifies: machinesEtage.filter(m => m.etat === 'Non vérifié').length
     };
   }
 
