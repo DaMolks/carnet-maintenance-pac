@@ -1,80 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { Database, FileText, AlertTriangle, CheckCircle, Settings, Calendar, Search, Filter, PlusCircle } from 'lucide-react';
+import { Database, FileText, AlertTriangle, CheckCircle, Settings, Calendar, Search, Filter, PlusCircle, Save, Upload } from 'lucide-react';
 
-// Structure de données pour les machines PAC
-const initialMachines = [
-  // 1er étage
-  { id: 'A0101', etage: '1', etat: 'Fonctionnel', derniereVerification: '2025-04-15', maintenancePrevue: '2025-07-15', notes: 'RAS' },
-  { id: 'A0102', etage: '1', etat: 'Fonctionnel', derniereVerification: '2025-04-15', maintenancePrevue: '2025-07-15', notes: 'Filtre à changer prochainement' },
-  { id: 'A0103', etage: '1', etat: 'Fonctionnel', derniereVerification: '2025-04-16', maintenancePrevue: '2025-07-16', notes: 'RAS' },
-  { id: 'A0103b', etage: '1', etat: 'HS', derniereVerification: '2025-04-16', maintenancePrevue: '2025-05-20', notes: 'Panne compresseur - Pièce commandée' },
-  // Quelques exemples pour les autres étages
-  { id: 'A0201', etage: '2', etat: 'Fonctionnel', derniereVerification: '2025-04-10', maintenancePrevue: '2025-07-10', notes: 'RAS' },
-  { id: 'A0301', etage: '3', etat: 'HS', derniereVerification: '2025-04-05', maintenancePrevue: '2025-05-15', notes: 'Problème électrique - Intervention prévue' },
-  { id: 'TSGR1', etage: 'Technique', etat: 'Fonctionnel', derniereVerification: '2025-04-01', maintenancePrevue: '2025-07-01', notes: 'Vérification complète effectuée' },
-];
+// Importer le service de données
+import dataService from '../services/DataService';
 
-// Tous les identifiants de machines
-const allMachineIds = [
-  'A0101', 'A0102', 'A0103', 'A0103b', 'A0104', 'A0105', 'A0106', 'A0107', 'A0108',
-  'A0201', 'A0202', 'A0203', 'A0204', 'A0205', 'A0206', 'A0207', 'A0208',
-  'A0301', 'A0302', 'A0303', 'A0304', 'A0305', 'A0306', 'A0306b', 'A0307', 'A0308',
-  'A0401b', 'A0401', 'A0402', 'A0403', 'A0404', 'A0405', 'A0406', 'A0407', 'A0408', 'A0409', 'A0410', 'A0411', 'A0412',
-  'A0501', 'A0502', 'A0503', 'A0504', 'A0505', 'A0506', 'A0507', 'A0507b', 'A0508', 'A0509', 'A0510', 'A0511', 'A0512', 'A0513', 'A0514', 'A0515', 'A0516',
-  'A0601', 'A0602', 'A0603', 'A0604', 'A0605', 'A0606', 'A0606b', 'A0607', 'A0608', 'A0609', 'A0610', 'A0611', 'A0612',
-  'TSGR1', 'TSGR2', 'TSGR3', 'TSGR4'
-];
-
-// Liste complète des étages
-const etages = ['1', '2', '3', '4', '5', '6', 'Technique'];
+// Liste complète des étages disponibles
+const etages = ['4', 'Technique'];
 
 const CarnetMaintenancePAC = () => {
   // État pour stocker les machines et leurs données
-  const [machines, setMachines] = useState(() => {
-    // Créer une liste complète avec tous les IDs
-    const completeList = allMachineIds.map(id => {
-      // Chercher si la machine existe déjà dans initialMachines
-      const existingMachine = initialMachines.find(m => m.id === id);
-      if (existingMachine) {
-        return existingMachine;
-      }
-      
-      // Déterminer l'étage basé sur l'ID
-      let etage = 'Inconnu';
-      if (id.startsWith('A01')) etage = '1';
-      else if (id.startsWith('A02')) etage = '2';
-      else if (id.startsWith('A03')) etage = '3';
-      else if (id.startsWith('A04')) etage = '4';
-      else if (id.startsWith('A05')) etage = '5';
-      else if (id.startsWith('A06')) etage = '6';
-      else if (id.startsWith('TSGR')) etage = 'Technique';
-      
-      // Créer une nouvelle entrée par défaut
-      return {
-        id,
-        etage,
-        etat: 'Non vérifié',
-        derniereVerification: '-',
-        maintenancePrevue: '-',
-        notes: ''
-      };
-    });
-    
-    return completeList;
-  });
+  const [machines, setMachines] = useState([]);
   
   // Filtres et tri
   const [etageFiltre, setEtageFiltre] = useState('Tous');
   const [etatFiltre, setEtatFiltre] = useState('Tous');
   const [searchTerm, setSearchTerm] = useState('');
   const [machineSelectionnee, setMachineSelectionnee] = useState(null);
-  const [historiqueIntervention, setHistoriqueIntervention] = useState({});
   const [nouvelleIntervention, setNouvelleIntervention] = useState({
     date: new Date().toISOString().split('T')[0],
     type: 'Maintenance',
     description: '',
     technicien: ''
   });
+  const [interventions, setInterventions] = useState({});
+  const [stats, setStats] = useState({
+    total: 0,
+    fonctionnels: 0,
+    hs: 0,
+    nonVerifies: 0
+  });
+  
+  // Chargement initial des données
+  useEffect(() => {
+    // Charger toutes les machines
+    const allMachines = dataService.getAllMachines();
+    setMachines(allMachines);
+    
+    // Charger les statistiques
+    setStats(dataService.getStatistics());
+  }, []);
 
   // Filtrer les machines selon les critères
   const machinesFiltrees = machines.filter(machine => {
@@ -95,61 +59,123 @@ const CarnetMaintenancePAC = () => {
   const handleMachineSelect = (machine) => {
     setMachineSelectionnee(machine);
     
-    // Simuler l'historique des interventions
-    if (!historiqueIntervention[machine.id]) {
-      // Générer un historique factice pour la démo
-      setHistoriqueIntervention({
-        ...historiqueIntervention,
-        [machine.id]: [
-          { date: '2025-01-15', type: 'Installation', description: 'Installation initiale', technicien: 'Martin D.' },
-          { date: '2025-04-01', type: 'Maintenance', description: 'Vérification des filtres', technicien: 'Sophie L.' },
-        ]
-      });
-    }
+    // Charger les interventions pour cette machine
+    const machineInterventions = dataService.getInterventions(machine.id);
+    setInterventions({
+      ...interventions,
+      [machine.id]: machineInterventions
+    });
   };
 
   // Mettre à jour l'état d'une machine
   const updateMachineEtat = (id, nouveauEtat) => {
-    setMachines(machines.map(machine => 
-      machine.id === id ? { ...machine, etat: nouveauEtat } : machine
-    ));
+    // Mettre à jour via le service de données
+    if (dataService.updateMachine(id, { etat: nouveauEtat })) {
+      // Mettre à jour l'état local
+      setMachines(machines.map(machine => 
+        machine.id === id ? { ...machine, etat: nouveauEtat } : machine
+      ));
+      
+      // Mettre à jour la machine sélectionnée si nécessaire
+      if (machineSelectionnee && machineSelectionnee.id === id) {
+        setMachineSelectionnee({ ...machineSelectionnee, etat: nouveauEtat });
+      }
+      
+      // Mettre à jour les statistiques
+      setStats(dataService.getStatistics());
+    }
+  };
+
+  // Mettre à jour les notes d'une machine
+  const updateMachineNotes = (id, notes) => {
+    // Mettre à jour via le service de données
+    if (dataService.updateMachine(id, { notes })) {
+      // Mettre à jour l'état local
+      setMachines(machines.map(machine => 
+        machine.id === id ? { ...machine, notes } : machine
+      ));
+      
+      // Mettre à jour la machine sélectionnée si nécessaire
+      if (machineSelectionnee && machineSelectionnee.id === id) {
+        setMachineSelectionnee({ ...machineSelectionnee, notes });
+      }
+    }
   };
 
   // Ajouter une nouvelle intervention
   const addIntervention = () => {
     if (machineSelectionnee && nouvelleIntervention.description) {
-      const updatedHistorique = {
-        ...historiqueIntervention,
-        [machineSelectionnee.id]: [
-          nouvelleIntervention,
-          ...(historiqueIntervention[machineSelectionnee.id] || [])
-        ]
-      };
-      
-      setHistoriqueIntervention(updatedHistorique);
-      
-      // Mettre à jour la date de dernière vérification
-      setMachines(machines.map(machine => 
-        machine.id === machineSelectionnee.id ? 
-          { ...machine, derniereVerification: nouvelleIntervention.date } : machine
-      ));
-      
-      // Réinitialiser le formulaire
-      setNouvelleIntervention({
-        date: new Date().toISOString().split('T')[0],
-        type: 'Maintenance',
-        description: '',
-        technicien: ''
-      });
+      // Ajouter via le service de données
+      if (dataService.addIntervention(machineSelectionnee.id, nouvelleIntervention)) {
+        // Mettre à jour l'état local des interventions
+        const updatedInterventions = {
+          ...interventions,
+          [machineSelectionnee.id]: dataService.getInterventions(machineSelectionnee.id)
+        };
+        setInterventions(updatedInterventions);
+        
+        // Mettre à jour la date de dernière vérification dans l'UI
+        const updatedMachine = dataService.getMachineById(machineSelectionnee.id);
+        setMachineSelectionnee(updatedMachine);
+        
+        // Mettre à jour la liste des machines
+        setMachines(machines.map(machine => 
+          machine.id === machineSelectionnee.id ? updatedMachine : machine
+        ));
+        
+        // Réinitialiser le formulaire
+        setNouvelleIntervention({
+          date: new Date().toISOString().split('T')[0],
+          type: 'Maintenance',
+          description: '',
+          technicien: ''
+        });
+      }
     }
   };
-
-  // Statistiques générales
-  const stats = {
-    total: machines.length,
-    fonctionnels: machines.filter(m => m.etat === 'Fonctionnel').length,
-    hs: machines.filter(m => m.etat === 'HS').length,
-    nonVerifies: machines.filter(m => m.etat === 'Non vérifié').length
+  
+  // Exporter les données
+  const handleExport = () => {
+    const jsonData = dataService.exportData();
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `carnet-maintenance-pac-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  
+  // Importer des données
+  const handleImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const jsonData = e.target.result;
+      if (dataService.importData(jsonData)) {
+        // Recharger les données après l'import
+        const allMachines = dataService.getAllMachines();
+        setMachines(allMachines);
+        setStats(dataService.getStatistics());
+        
+        // Réinitialiser la sélection
+        setMachineSelectionnee(null);
+        setInterventions({});
+        
+        alert('Données importées avec succès !');
+      } else {
+        alert('Erreur lors de l\'importation des données. Vérifiez le format du fichier.');
+      }
+    };
+    reader.readAsText(file);
+    
+    // Réinitialiser l'input file
+    event.target.value = '';
   };
 
   return (
@@ -161,16 +187,35 @@ const CarnetMaintenancePAC = () => {
             <Database className="mr-2" />
             <h1 className="text-xl font-bold">Carnet de Maintenance PAC</h1>
           </div>
-          <div className="flex space-x-2">
-            <span className="px-2 py-1 bg-green-500 rounded-md flex items-center text-sm">
-              <CheckCircle className="w-4 h-4 mr-1" /> {stats.fonctionnels} Fonctionnels
-            </span>
-            <span className="px-2 py-1 bg-red-500 rounded-md flex items-center text-sm">
-              <AlertTriangle className="w-4 h-4 mr-1" /> {stats.hs} HS
-            </span>
-            <span className="px-2 py-1 bg-gray-500 rounded-md flex items-center text-sm">
-              <Settings className="w-4 h-4 mr-1" /> {stats.nonVerifies} Non vérifiés
-            </span>
+          <div className="flex space-x-4">
+            <div className="flex space-x-2">
+              <span className="px-2 py-1 bg-green-500 rounded-md flex items-center text-sm">
+                <CheckCircle className="w-4 h-4 mr-1" /> {stats.fonctionnels} Fonctionnels
+              </span>
+              <span className="px-2 py-1 bg-red-500 rounded-md flex items-center text-sm">
+                <AlertTriangle className="w-4 h-4 mr-1" /> {stats.hs} HS
+              </span>
+              <span className="px-2 py-1 bg-gray-500 rounded-md flex items-center text-sm">
+                <Settings className="w-4 h-4 mr-1" /> {stats.nonVerifies} Non vérifiés
+              </span>
+            </div>
+            <div className="flex space-x-2">
+              <button 
+                onClick={handleExport}
+                className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded flex items-center text-sm"
+              >
+                <Save className="w-4 h-4 mr-1" /> Exporter
+              </button>
+              <label className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded flex items-center text-sm cursor-pointer">
+                <Upload className="w-4 h-4 mr-1" /> Importer
+                <input 
+                  type="file" 
+                  accept=".json" 
+                  className="hidden" 
+                  onChange={handleImport}
+                />
+              </label>
+            </div>
           </div>
         </div>
       </header>
@@ -231,10 +276,10 @@ const CarnetMaintenancePAC = () => {
               <div key={etage} className="mb-4">
                 <h3 className="font-medium text-gray-700 mb-2">Étage {etage}</h3>
                 <div className="space-y-2">
-                  {machinesParEtage[etage].filter(machine => {
+                  {machinesParEtage[etage]?.filter(machine => {
                     const matchEtat = etatFiltre === 'Tous' || machine.etat === etatFiltre;
                     const matchSearch = !searchTerm || machine.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                       (machine.notes && machine.notes.toLowerCase().includes(searchTerm.toLowerCase()));
+                                        (machine.notes && machine.notes.toLowerCase().includes(searchTerm.toLowerCase()));
                     return matchEtat && matchSearch;
                   }).map(machine => (
                     <div 
@@ -349,14 +394,7 @@ const CarnetMaintenancePAC = () => {
                     className="w-full border rounded p-2"
                     rows="2"
                     value={machineSelectionnee.notes}
-                    onChange={(e) => {
-                      const updatedNotes = e.target.value;
-                      setMachines(machines.map(machine => 
-                        machine.id === machineSelectionnee.id ? 
-                          { ...machine, notes: updatedNotes } : machine
-                      ));
-                      setMachineSelectionnee({ ...machineSelectionnee, notes: updatedNotes });
-                    }}
+                    onChange={(e) => updateMachineNotes(machineSelectionnee.id, e.target.value)}
                   />
                 </div>
               </div>
@@ -365,7 +403,7 @@ const CarnetMaintenancePAC = () => {
               <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
                 <h3 className="text-lg font-medium mb-2">Historique des interventions</h3>
                 
-                {historiqueIntervention[machineSelectionnee.id]?.length > 0 ? (
+                {interventions[machineSelectionnee.id]?.length > 0 ? (
                   <div className="overflow-auto max-h-48">
                     <table className="min-w-full">
                       <thead className="bg-gray-50">
@@ -377,7 +415,7 @@ const CarnetMaintenancePAC = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {historiqueIntervention[machineSelectionnee.id].map((intervention, idx) => (
+                        {interventions[machineSelectionnee.id].map((intervention, idx) => (
                           <tr key={idx}>
                             <td className="px-4 py-2 whitespace-nowrap text-sm">{intervention.date}</td>
                             <td className="px-4 py-2 whitespace-nowrap text-sm">{intervention.type}</td>
