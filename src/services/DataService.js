@@ -223,7 +223,7 @@ class DataService {
    * Ajoute la même intervention pour plusieurs machines à la fois
    * @param {Array} machineIds Liste des identifiants des machines
    * @param {Object} intervention Données de l'intervention
-   * @param {Array} machinesDetails Liste des machines avec leurs états à mettre à jour (optionnel)
+   * @param {Array} machinesDetails Liste des machines avec leurs états et descriptions spécifiques à mettre à jour
    * @returns {boolean} Succès de l'opération
    */
   addInterventionToMultipleMachines(machineIds, intervention, machinesDetails = null) {
@@ -248,15 +248,28 @@ class DataService {
       newIntervention.date = formatDateToISO(newIntervention.date);
     }
     
-    // Créer un Map avec les états personnalisés des machines si fourni
+    // Créer un Map avec les états personnalisés et descriptions spécifiques des machines 
     const machineStates = new Map();
+    const machineDescriptions = new Map();
+    
     if (machinesDetails && Array.isArray(machinesDetails)) {
       machinesDetails.forEach(machine => {
-        if (machine.id && machine.newStatus) {
-          machineStates.set(machine.id, machine.newStatus);
+        if (machine.id) {
+          // Stocker le nouvel état si fourni
+          if (machine.newStatus) {
+            machineStates.set(machine.id, machine.newStatus);
+          }
+          
+          // Stocker la description spécifique si fournie
+          if (machine.specificDescription) {
+            machineDescriptions.set(machine.id, machine.specificDescription);
+          }
         }
       });
     }
+    
+    // Utiliser des descriptions individuelles si spécifié
+    const useSpecificDescriptions = intervention.useSpecificDescriptions === true;
     
     // Ajouter l'intervention à chaque machine
     for (const machineId of machineIds) {
@@ -264,8 +277,17 @@ class DataService {
         this.interventions[machineId] = [];
       }
       
+      // Créer une copie spécifique de l'intervention pour cette machine
+      const machineIntervention = {...newIntervention};
+      
+      // Utiliser la description spécifique si disponible et si spécifié
+      if (useSpecificDescriptions && machineDescriptions.has(machineId)) {
+        machineIntervention.description = machineDescriptions.get(machineId);
+      }
+      
+      // Ajouter l'intervention à la machine
       this.interventions[machineId] = [
-        {...newIntervention},
+        machineIntervention,
         ...this.interventions[machineId]
       ];
       
