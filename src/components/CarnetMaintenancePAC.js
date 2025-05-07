@@ -32,6 +32,7 @@ const CarnetMaintenancePAC = () => {
     technicien: ''
   });
   const [interventions, setInterventions] = useState({});
+  const [idHistory, setIdHistory] = useState({});
   const [stats, setStats] = useState({
     total: 0,
     fonctionnels: 0,
@@ -106,9 +107,17 @@ const CarnetMaintenancePAC = () => {
       date: formatDateToFrench(intervention.date)
     }));
     
+    // Charger l'historique des identifiants pour cette machine
+    const history = dataService.getIdHistory(machine.id);
+    
     setInterventions({
       ...interventions,
       [machine.id]: interventionsWithFormattedDates
+    });
+    
+    setIdHistory({
+      ...idHistory,
+      [machine.id]: history
     });
   };
 
@@ -144,6 +153,52 @@ const CarnetMaintenancePAC = () => {
       if (machineSelectionnee && machineSelectionnee.id === id) {
         setMachineSelectionnee({ ...machineSelectionnee, notes });
       }
+    }
+  };
+  
+  // Mettre à jour le numéro de série d'une machine
+  const updateMachineSerialNumber = (id, serialNumber, user = null) => {
+    // Mettre à jour via le service de données
+    if (dataService.updateSerialNumber(id, serialNumber, user)) {
+      // Mettre à jour l'état local
+      setMachines(machines.map(machine => 
+        machine.id === id ? { ...machine, serialNumber } : machine
+      ));
+      
+      // Mettre à jour la machine sélectionnée si nécessaire
+      if (machineSelectionnee && machineSelectionnee.id === id) {
+        setMachineSelectionnee({ ...machineSelectionnee, serialNumber });
+      }
+      
+      // Recharger l'historique des identifiants
+      const updatedHistory = dataService.getIdHistory(id);
+      setIdHistory({
+        ...idHistory,
+        [id]: updatedHistory
+      });
+    }
+  };
+  
+  // Mettre à jour le Neuron ID d'une machine
+  const updateMachineNeuronId = (id, neuronId, user = null) => {
+    // Mettre à jour via le service de données
+    if (dataService.updateNeuronId(id, neuronId, user)) {
+      // Mettre à jour l'état local
+      setMachines(machines.map(machine => 
+        machine.id === id ? { ...machine, neuronId } : machine
+      ));
+      
+      // Mettre à jour la machine sélectionnée si nécessaire
+      if (machineSelectionnee && machineSelectionnee.id === id) {
+        setMachineSelectionnee({ ...machineSelectionnee, neuronId });
+      }
+      
+      // Recharger l'historique des identifiants
+      const updatedHistory = dataService.getIdHistory(id);
+      setIdHistory({
+        ...idHistory,
+        [id]: updatedHistory
+      });
     }
   };
 
@@ -241,6 +296,7 @@ const CarnetMaintenancePAC = () => {
         // Réinitialiser la sélection
         setMachineSelectionnee(null);
         setInterventions({});
+        setIdHistory({});
         
         alert('Toutes les données ont été réinitialisées avec succès.');
       }
@@ -284,6 +340,7 @@ const CarnetMaintenancePAC = () => {
         // Réinitialiser la sélection
         setMachineSelectionnee(null);
         setInterventions({});
+        setIdHistory({});
         
         alert('Données importées avec succès !');
       } else {
@@ -398,7 +455,9 @@ const CarnetMaintenancePAC = () => {
     const matchEtat = etatFiltre === 'Tous' || machine.etat === etatFiltre;
     const matchSearch = !searchTerm || 
                       machine.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                      (machine.notes && machine.notes.toLowerCase().includes(searchTerm.toLowerCase()));
+                      (machine.notes && machine.notes.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                      (machine.serialNumber && machine.serialNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                      (machine.neuronId && machine.neuronId.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchEtage && matchEtat && matchSearch;
   });
 
@@ -508,8 +567,8 @@ const CarnetMaintenancePAC = () => {
             <Search className="w-4 h-4 mr-2 text-gray-500" />
             <input
               type="text"
-              placeholder="Rechercher..."
-              className="border rounded p-1"
+              placeholder="Rechercher ID, notes, numéro de série ou Neuron ID..."
+              className="border rounded p-1 w-64"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -562,6 +621,16 @@ const CarnetMaintenancePAC = () => {
                       {machine.etat}
                     </span>
                   </div>
+                  {(machine.serialNumber || machine.neuronId) && (
+                    <div className="flex flex-col mt-1">
+                      {machine.serialNumber && (
+                        <p className="text-xs text-gray-600">SN: {machine.serialNumber}</p>
+                      )}
+                      {machine.neuronId && (
+                        <p className="text-xs text-gray-600">Neuron ID: {machine.neuronId}</p>
+                      )}
+                    </div>
+                  )}
                   {machine.notes && (
                     <p className="text-sm text-gray-600 mt-1 truncate">{machine.notes}</p>
                   )}
@@ -579,10 +648,13 @@ const CarnetMaintenancePAC = () => {
               interventions={interventions[machineSelectionnee.id] || []}
               onUpdateEtat={updateMachineEtat}
               onUpdateNotes={updateMachineNotes}
+              onUpdateSerialNumber={updateMachineSerialNumber}
+              onUpdateNeuronId={updateMachineNeuronId}
               onDeleteIntervention={deleteIntervention}
               nouvelleIntervention={nouvelleIntervention}
               setNouvelleIntervention={setNouvelleIntervention}
               onAddIntervention={addIntervention}
+              idHistory={idHistory[machineSelectionnee.id] || { entries: [] }}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
