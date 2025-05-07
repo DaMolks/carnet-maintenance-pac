@@ -4,11 +4,12 @@
  * Actuellement basé sur localStorage, mais conçu pour faciliter la migration vers une BD
  */
 
-import { formatDateToISO } from '../utils/dateUtils';
+import { formatDateToISO, getTodayFrenchFormat, formatDateToFrench } from '../utils/dateUtils';
 
 // Clé utilisée pour le stockage des machines dans localStorage
 const STORAGE_KEY_MACHINES = 'carnet_maintenance_pac_machines_v2';
 const STORAGE_KEY_INTERVENTIONS = 'carnet_maintenance_pac_interventions_v2';
+const STORAGE_KEY_ID_HISTORY = 'carnet_maintenance_pac_id_history_v1';
 
 // Liste de tous les identifiants de PAC (tous sur l'étage 4 comme indiqué)
 const allPacIds = [
@@ -29,6 +30,7 @@ class DataService {
   constructor() {
     this.machines = this._loadMachines();
     this.interventions = this._loadInterventions();
+    this.idHistory = this._loadIdHistory();
   }
 
   /**
@@ -52,7 +54,9 @@ class DataService {
           etat: 'Non vérifié',
           derniereVerification: '-',
           maintenancePrevue: '-',
-          notes: ''
+          notes: '',
+          serialNumber: '',
+          neuronId: ''
         };
       });
       
@@ -87,6 +91,37 @@ class DataService {
       return {};
     }
   }
+  
+  /**
+   * Charge l'historique des modifications d'identifiants depuis le localStorage ou initialise avec un objet vide
+   * @returns {Object} Historique des modifications indexé par ID de machine
+   */
+  _loadIdHistory() {
+    try {
+      const storedHistory = localStorage.getItem(STORAGE_KEY_ID_HISTORY);
+      
+      if (storedHistory) {
+        return JSON.parse(storedHistory);
+      }
+      
+      // Si aucune donnée n'existe, initialiser avec un objet vide
+      const defaultHistory = {};
+      
+      // Pour chaque machine, créer une entrée vide
+      allPacIds.forEach(id => {
+        defaultHistory[id] = {
+          entries: []
+        };
+      });
+      
+      localStorage.setItem(STORAGE_KEY_ID_HISTORY, JSON.stringify(defaultHistory));
+      
+      return defaultHistory;
+    } catch (error) {
+      console.error('Erreur lors du chargement de l\'historique des identifiants:', error);
+      return {};
+    }
+  }
 
   /**
    * Sauvegarde les modifications de machines dans le stockage
@@ -107,6 +142,17 @@ class DataService {
       localStorage.setItem(STORAGE_KEY_INTERVENTIONS, JSON.stringify(this.interventions));
     } catch (error) {
       console.error('Erreur lors de la sauvegarde des interventions:', error);
+    }
+  }
+  
+  /**
+   * Sauvegarde les modifications de l'historique des identifiants dans le stockage
+   */
+  _saveIdHistory() {
+    try {
+      localStorage.setItem(STORAGE_KEY_ID_HISTORY, JSON.stringify(this.idHistory));
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de l\'historique des identifiants:', error);
     }
   }
 
@@ -148,6 +194,95 @@ class DataService {
     
     this._saveMachines();
     return true;
+  }
+  
+  /**
+   * Met à jour le numéro de série d'une machine et enregistre l'historique
+   * @param {string} id Identifiant de la machine
+   * @param {string} serialNumber Nouveau numéro de série
+   * @param {string} user Utilisateur qui effectue la modification (optionnel)
+   * @returns {boolean} Succès de l'opération
+   */
+  updateSerialNumber(id, serialNumber, user = null) {
+    const machine = this.getMachineById(id);
+    
+    if (!machine) {
+      return false;
+    }
+    
+    // Si la valeur est identique, ne rien faire
+    if (machine.serialNumber === serialNumber) {
+      return true;
+    }
+    
+    // Enregistrer l'historique de la modification
+    if (!this.idHistory[id]) {
+      this.idHistory[id] = { entries: [] };
+    }
+    
+    // Ajouter l'entrée d'historique
+    this.idHistory[id].entries.unshift({
+      date: getTodayFrenchFormat(),
+      field: 'Numéro de série',
+      oldValue: machine.serialNumber || '',
+      newValue: serialNumber,
+      user: user
+    });
+    
+    // Sauvegarder l'historique
+    this._saveIdHistory();
+    
+    // Mettre à jour la machine
+    return this.updateMachine(id, { serialNumber });
+  }
+  
+  /**
+   * Met à jour le Neuron ID d'une machine et enregistre l'historique
+   * @param {string} id Identifiant de la machine
+   * @param {string} neuronId Nouveau Neuron ID
+   * @param {string} user Utilisateur qui effectue la modification (optionnel)
+   * @returns {boolean} Succès de l'opération
+   */
+  updateNeuronId(id, neuronId, user = null) {
+    const machine = this.getMachineById(id);
+    
+    if (!machine) {
+      return false;
+    }
+    
+    // Si la valeur est identique, ne rien faire
+    if (machine.neuronId === neuronId) {
+      return true;
+    }
+    
+    // Enregistrer l'historique de la modification
+    if (!this.idHistory[id]) {
+      this.idHistory[id] = { entries: [] };
+    }
+    
+    // Ajouter l'entrée d'historique
+    this.idHistory[id].entries.unshift({
+      date: getTodayFrenchFormat(),
+      field: 'Neuron ID',
+      oldValue: machine.neuronId || '',
+      newValue: neuronId,
+      user: user
+    });
+    
+    // Sauvegarder l'historique
+    this._saveIdHistory();
+    
+    // Mettre à jour la machine
+    return this.updateMachine(id, { neuronId });
+  }
+  
+  /**
+   * Récupère l'historique des modifications d'identifiants pour une machine
+   * @param {string} id Identifiant de la machine
+   * @returns {Object} Historique des modifications ou objet vide si aucun
+   */
+  getIdHistory(id) {
+    return this.idHistory[id] || { entries: [] };
   }
 
   /**
@@ -374,7 +509,8 @@ class DataService {
   exportData() {
     return JSON.stringify({
       machines: this.machines,
-      interventions: this.interventions
+      interventions: this.interventions,
+      idHistory: this.idHistory
     });
   }
 
@@ -397,6 +533,11 @@ class DataService {
         this._saveInterventions();
       }
       
+      if (data.idHistory && typeof data.idHistory === 'object') {
+        this.idHistory = data.idHistory;
+        this._saveIdHistory();
+      }
+      
       return true;
     } catch (error) {
       console.error('Erreur lors de l\'importation des données:', error);
@@ -415,15 +556,24 @@ class DataService {
       etat: 'Non vérifié',
       derniereVerification: '-',
       maintenancePrevue: '-',
-      notes: ''
+      notes: '',
+      serialNumber: '',
+      neuronId: ''
     }));
     
     // Réinitialiser les interventions
     this.interventions = {};
     
+    // Réinitialiser l'historique des identifiants
+    this.idHistory = {};
+    allPacIds.forEach(id => {
+      this.idHistory[id] = { entries: [] };
+    });
+    
     // Sauvegarder les changements
     this._saveMachines();
     this._saveInterventions();
+    this._saveIdHistory();
     
     return true;
   }
