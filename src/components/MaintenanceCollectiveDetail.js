@@ -29,7 +29,8 @@ const MaintenanceCollectiveDetail = ({
   const [intervention, setIntervention] = useState({
     date: interventionBase.date,
     technicien: interventionBase.technicien,
-    description: interventionBase.description
+    description: interventionBase.description,
+    type: interventionBase.type || 'Maintenance' // S'assurer que le type est défini
   });
   // État pour filtrer les machines
   const [etageFiltre, setEtageFiltre] = useState("Tous");
@@ -231,6 +232,22 @@ const MaintenanceCollectiveDetail = ({
                 technicien: e.target.value
               })}
             />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700 mb-1">Type d'intervention</label>
+            <select
+              className="w-full border rounded p-2"
+              value={intervention.type}
+              onChange={(e) => setIntervention({
+                ...intervention,
+                type: e.target.value
+              })}
+            >
+              <option value="Maintenance">Maintenance</option>
+              <option value="Réparation">Réparation</option>
+              <option value="Inspection">Inspection</option>
+              <option value="Remplacement">Remplacement</option>
+            </select>
           </div>
           <div className="md:col-span-2 relative">
             <label className="block text-sm text-gray-700 mb-1">Description générale</label>
