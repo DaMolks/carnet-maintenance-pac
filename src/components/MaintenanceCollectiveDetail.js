@@ -38,6 +38,10 @@ const MaintenanceCollectiveDetail = ({
   // Afficher ou masquer les pannes courantes
   const [showTags, setShowTags] = useState(false);
   
+  // Nouvel état pour gérer les tags par machine
+  const [machinesTags, setMachinesTags] = useState({});
+  const [activeTagMachine, setActiveTagMachine] = useState(null);
+  
   // Initialiser l'état des machines au chargement du composant
   useEffect(() => {
     setMachinesStatus(
@@ -117,6 +121,19 @@ const MaintenanceCollectiveDetail = ({
     setShowTags(false);
   };
   
+  // Nouvelle fonction pour ajouter un tag à une machine spécifique
+  const addTagToMachine = (machineId, tag) => {
+    setMachinesTags(prev => {
+      const currentTags = prev[machineId] || '';
+      const newTags = currentTags ? `${currentTags}, ${tag}` : tag;
+      return {
+        ...prev,
+        [machineId]: newTags
+      };
+    });
+    setActiveTagMachine(null); // Fermer le sélecteur de tags
+  };
+  
   // Calculer le nombre de machines sélectionnées
   const selectedCount = machinesStatus.filter(machine => machine.selected).length;
   
@@ -137,18 +154,30 @@ const MaintenanceCollectiveDetail = ({
       return;
     }
     
-    // Préparer les données pour la soumission
+    // Préparer les données pour la soumission en incluant les tags spécifiques
     const selectedMachines = machinesStatus
       .filter(machine => machine.selected)
-      .map(machine => ({
-        id: machine.id,
-        newStatus: machine.newStatus
-      }));
+      .map(machine => {
+        // Récupérer les tags spécifiques à cette machine s'ils existent
+        const machineSpecificTags = machinesTags[machine.id] || '';
+        
+        return {
+          id: machine.id,
+          newStatus: machine.newStatus,
+          // Ajouter les tags à la description individuelle si présents
+          specificDescription: machineSpecificTags 
+                            ? `${intervention.description} - Problèmes spécifiques: ${machineSpecificTags}`
+                            : intervention.description
+        };
+      });
     
     // Appeler la fonction de soumission fournie par le parent
     onSubmit({
       machines: selectedMachines,
-      intervention: intervention
+      intervention: {
+        ...intervention,
+        useSpecificDescriptions: true // Nouveau flag pour indiquer d'utiliser des descriptions spécifiques
+      }
     });
   };
   
@@ -204,12 +233,12 @@ const MaintenanceCollectiveDetail = ({
             />
           </div>
           <div className="md:col-span-2 relative">
-            <label className="block text-sm text-gray-700 mb-1">Description</label>
+            <label className="block text-sm text-gray-700 mb-1">Description générale</label>
             <div className="flex">
               <textarea
                 className="flex-1 border rounded p-2"
                 rows="2"
-                placeholder="Description de l'intervention"
+                placeholder="Description de l'intervention commune à toutes les machines"
                 value={intervention.description}
                 onChange={(e) => setIntervention({
                   ...intervention,
@@ -219,13 +248,13 @@ const MaintenanceCollectiveDetail = ({
               <button
                 className="ml-2 p-2 bg-gray-100 hover:bg-gray-200 rounded"
                 onClick={() => setShowTags(!showTags)}
-                title="Tags de pannes courantes"
+                title="Tags de pannes courantes pour toutes les machines"
               >
                 <Tag size={20} />
               </button>
             </div>
             
-            {/* Liste des tags de pannes courantes */}
+            {/* Liste des tags de pannes courantes pour la description générale */}
             {showTags && (
               <div className="absolute z-10 mt-1 w-full bg-white border rounded-md shadow-lg p-2">
                 <div className="grid grid-cols-2 gap-2">
@@ -337,7 +366,7 @@ const MaintenanceCollectiveDetail = ({
               {machinesFiltrees.map(machine => (
                 <div 
                   key={machine.id}
-                  className={`p-3 border rounded flex items-center ${
+                  className={`p-3 border rounded flex items-center ${ 
                     machine.selected ? 'bg-orange-50 border-orange-300' : 'hover:bg-gray-50'
                   }`}
                 >
@@ -359,6 +388,10 @@ const MaintenanceCollectiveDetail = ({
                     </div>
                     {machine.notes && (
                       <p className="text-sm text-gray-600 mt-1 truncate">{machine.notes}</p>
+                    )}
+                    {/* Afficher les tags spécifiques à cette machine s'ils existent */}
+                    {machinesTags[machine.id] && (
+                      <p className="text-sm text-blue-600 mt-1">Problèmes spécifiques: {machinesTags[machine.id]}</p>
                     )}
                   </div>
                   
@@ -388,6 +421,40 @@ const MaintenanceCollectiveDetail = ({
                       <option value="HS">HS</option>
                       <option value="Non vérifié">Non vérifié</option>
                     </select>
+                  </div>
+                  
+                  {/* Nouveau bouton de tag par machine */}
+                  <div className="ml-4 relative">
+                    <button
+                      className="p-1 bg-gray-100 hover:bg-gray-200 rounded"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveTagMachine(activeTagMachine === machine.id ? null : machine.id);
+                      }}
+                      title="Tags de pannes spécifiques à cette machine"
+                    >
+                      <Tag size={16} />
+                    </button>
+                    
+                    {/* Afficher les tags disponibles si cette machine est active */}
+                    {activeTagMachine === machine.id && (
+                      <div className="absolute z-10 right-0 mt-1 w-64 bg-white border rounded-md shadow-lg p-2">
+                        <div className="grid grid-cols-1 gap-1">
+                          {TAGS_PANNES_COURANTES.map((tag, index) => (
+                            <button
+                              key={index}
+                              className="text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addTagToMachine(machine.id, tag);
+                              }}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
