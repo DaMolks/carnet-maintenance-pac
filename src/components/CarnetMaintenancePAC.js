@@ -348,7 +348,11 @@ const CarnetMaintenancePAC = () => {
     const machineIds = data.machines.map(m => m.id);
     
     // Ajouter l'intervention via le service de données
-    if (dataService.addInterventionToMultipleMachines(machineIds, data.intervention, data.machines)) {
+    // Passer le flag useSpecificDescriptions pour indiquer qu'il faut utiliser les descriptions spécifiques
+    if (dataService.addInterventionToMultipleMachines(machineIds, {
+      ...data.intervention,
+      useSpecificDescriptions: true
+    }, data.machines)) {
       // Mettre à jour la liste des machines et les statistiques
       updateMachinesList();
       
