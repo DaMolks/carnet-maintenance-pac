@@ -4,23 +4,8 @@
  * Actuellement basé sur localStorage, mais conçu pour faciliter la migration vers une BD
  */
 
-import { formatDateToISO, getTodayFrenchFormat, formatDateToFrench } from '../utils/dateUtils';
-
-// Clé utilisée pour le stockage des machines dans localStorage
-const STORAGE_KEY_MACHINES = 'carnet_maintenance_pac_machines_v2';
-const STORAGE_KEY_INTERVENTIONS = 'carnet_maintenance_pac_interventions_v2';
-const STORAGE_KEY_ID_HISTORY = 'carnet_maintenance_pac_id_history_v1';
-
-// Liste mise à jour des identifiants de PAC selon les machines existantes
-const allPacIds = [
-  'A0101', 'A0102', 'A0103', 'A0104', 'A0105', 'A0106', 'A0107', 'A0108',
-  'A0201', 'A0202', 'A0203', 'A0204', 'A0205', 'A0206', 'A0207', 'A0208',
-  'A0301', 'A0302', 'A0303', 'A0304', 'A0305', 'A0306', 'A0307', 'A0308',
-  'A0401b', 'A0401', 'A0402', 'A0403', 'A0404', 'A0405', 'A0406',
-  'A0501', 'A0502', 'A0503', 'A0504', 'A0505', 'A0506', 'A0507', 'A0508',
-  'A0601', 'A0602', 'A0603', 'A0604', 'A0605', 'A0606', 'A0606b',
-  'TSGR1', 'TSGR2', 'TSGR3'
-];
+import { formatDateToISO, getTodayFrenchFormat } from '../utils/dateUtils';
+import { STORAGE_KEYS, ALL_PAC_IDS, MACHINE_STATES } from '../constants/config';
 
 class DataService {
   /**
@@ -39,12 +24,12 @@ class DataService {
    */
   _loadMachines() {
     try {
-      const storedMachines = localStorage.getItem(STORAGE_KEY_MACHINES);
+      const storedMachines = localStorage.getItem(STORAGE_KEYS.MACHINES);
       
       if (storedMachines) {
         // Filtrer les machines stockées pour ne garder que celles qui sont dans la liste mise à jour
         const parsedMachines = JSON.parse(storedMachines);
-        const validMachines = parsedMachines.filter(machine => allPacIds.includes(machine.id));
+        const validMachines = parsedMachines.filter(machine => ALL_PAC_IDS.includes(machine.id));
         
         // Si le nombre de machines a changé, mettre à jour le stockage
         if (validMachines.length !== parsedMachines.length) {
@@ -52,12 +37,12 @@ class DataService {
           
           // Ajouter les nouvelles machines qui pourraient manquer
           const existingIds = new Set(validMachines.map(m => m.id));
-          allPacIds.forEach(id => {
+          ALL_PAC_IDS.forEach(id => {
             if (!existingIds.has(id)) {
               validMachines.push({
                 id,
                 etage: id.startsWith('T') ? 'Technique' : '4',
-                etat: 'Non vérifié',
+                etat: MACHINE_STATES[2], // Non vérifié
                 derniereVerification: '-',
                 maintenancePrevue: '-',
                 notes: '',
@@ -67,7 +52,7 @@ class DataService {
             }
           });
           
-          localStorage.setItem(STORAGE_KEY_MACHINES, JSON.stringify(validMachines));
+          localStorage.setItem(STORAGE_KEYS.MACHINES, JSON.stringify(validMachines));
           return validMachines;
         }
         
@@ -75,12 +60,11 @@ class DataService {
       }
       
       // Si aucune donnée n'existe, initialiser avec la liste complète des machines
-      // Toutes sur l'étage 4 comme indiqué, sans exemples pré-remplis
-      const defaultMachines = allPacIds.map(id => {
+      const defaultMachines = ALL_PAC_IDS.map(id => {
         return {
           id,
           etage: id.startsWith('T') ? 'Technique' : '4', // Étage Technique pour les TSGR, sinon étage 4
-          etat: 'Non vérifié',
+          etat: MACHINE_STATES[2], // Non vérifié
           derniereVerification: '-',
           maintenancePrevue: '-',
           notes: '',
@@ -90,7 +74,7 @@ class DataService {
       });
       
       // Sauvegarder dans localStorage
-      localStorage.setItem(STORAGE_KEY_MACHINES, JSON.stringify(defaultMachines));
+      localStorage.setItem(STORAGE_KEYS.MACHINES, JSON.stringify(defaultMachines));
       
       return defaultMachines;
     } catch (error) {
@@ -105,13 +89,13 @@ class DataService {
    */
   _loadInterventions() {
     try {
-      const storedInterventions = localStorage.getItem(STORAGE_KEY_INTERVENTIONS);
+      const storedInterventions = localStorage.getItem(STORAGE_KEYS.INTERVENTIONS);
       
       if (storedInterventions) {
         const parsedInterventions = JSON.parse(storedInterventions);
         
         // Nettoyer les interventions pour les machines qui n'existent plus
-        const validMachineIds = new Set(allPacIds);
+        const validMachineIds = new Set(ALL_PAC_IDS);
         Object.keys(parsedInterventions).forEach(machineId => {
           if (!validMachineIds.has(machineId)) {
             delete parsedInterventions[machineId];
@@ -121,8 +105,8 @@ class DataService {
         return parsedInterventions;
       }
       
-      // Si aucune donnée n'existe, initialiser avec un objet vide (pas d'exemples)
-      localStorage.setItem(STORAGE_KEY_INTERVENTIONS, JSON.stringify({}));
+      // Si aucune donnée n'existe, initialiser avec un objet vide
+      localStorage.setItem(STORAGE_KEYS.INTERVENTIONS, JSON.stringify({}));
       
       return {};
     } catch (error) {
@@ -137,13 +121,13 @@ class DataService {
    */
   _loadIdHistory() {
     try {
-      const storedHistory = localStorage.getItem(STORAGE_KEY_ID_HISTORY);
+      const storedHistory = localStorage.getItem(STORAGE_KEYS.ID_HISTORY);
       
       if (storedHistory) {
         const parsedHistory = JSON.parse(storedHistory);
         
         // Nettoyer l'historique pour les machines qui n'existent plus
-        const validMachineIds = new Set(allPacIds);
+        const validMachineIds = new Set(ALL_PAC_IDS);
         Object.keys(parsedHistory).forEach(machineId => {
           if (!validMachineIds.has(machineId)) {
             delete parsedHistory[machineId];
@@ -151,7 +135,7 @@ class DataService {
         });
         
         // S'assurer que toutes les machines actuelles ont une entrée d'historique
-        allPacIds.forEach(id => {
+        ALL_PAC_IDS.forEach(id => {
           if (!parsedHistory[id]) {
             parsedHistory[id] = { entries: [] };
           }
@@ -164,11 +148,11 @@ class DataService {
       const defaultHistory = {};
       
       // Pour chaque machine, créer une entrée vide
-      allPacIds.forEach(id => {
+      ALL_PAC_IDS.forEach(id => {
         defaultHistory[id] = { entries: [] };
       });
       
-      localStorage.setItem(STORAGE_KEY_ID_HISTORY, JSON.stringify(defaultHistory));
+      localStorage.setItem(STORAGE_KEYS.ID_HISTORY, JSON.stringify(defaultHistory));
       
       return defaultHistory;
     } catch (error) {
@@ -182,7 +166,7 @@ class DataService {
    */
   _saveMachines() {
     try {
-      localStorage.setItem(STORAGE_KEY_MACHINES, JSON.stringify(this.machines));
+      localStorage.setItem(STORAGE_KEYS.MACHINES, JSON.stringify(this.machines));
     } catch (error) {
       console.error('Erreur lors de la sauvegarde des machines:', error);
     }
@@ -193,7 +177,7 @@ class DataService {
    */
   _saveInterventions() {
     try {
-      localStorage.setItem(STORAGE_KEY_INTERVENTIONS, JSON.stringify(this.interventions));
+      localStorage.setItem(STORAGE_KEYS.INTERVENTIONS, JSON.stringify(this.interventions));
     } catch (error) {
       console.error('Erreur lors de la sauvegarde des interventions:', error);
     }
@@ -204,7 +188,7 @@ class DataService {
    */
   _saveIdHistory() {
     try {
-      localStorage.setItem(STORAGE_KEY_ID_HISTORY, JSON.stringify(this.idHistory));
+      localStorage.setItem(STORAGE_KEYS.ID_HISTORY, JSON.stringify(this.idHistory));
     } catch (error) {
       console.error('Erreur lors de la sauvegarde de l\'historique des identifiants:', error);
     }
@@ -505,7 +489,7 @@ class DataService {
       // Déterminer le nouvel état à appliquer
       const newStatus = machineStates.has(machineId) 
         ? machineStates.get(machineId) 
-        : 'Fonctionnel'; // Par défaut, mettre à jour l'état à Fonctionnel
+        : MACHINE_STATES[0]; // Par défaut, mettre à jour l'état à Fonctionnel
       
       // Mettre à jour la date de dernière vérification et l'état
       this.updateMachine(machineId, { 
@@ -556,9 +540,9 @@ class DataService {
   getStatistics() {
     return {
       total: this.machines.length,
-      fonctionnels: this.machines.filter(m => m.etat === 'Fonctionnel').length,
-      hs: this.machines.filter(m => m.etat === 'HS').length,
-      nonVerifies: this.machines.filter(m => m.etat === 'Non vérifié').length
+      fonctionnels: this.machines.filter(m => m.etat === MACHINE_STATES[0]).length,
+      hs: this.machines.filter(m => m.etat === MACHINE_STATES[1]).length,
+      nonVerifies: this.machines.filter(m => m.etat === MACHINE_STATES[2]).length
     };
   }
   
@@ -572,9 +556,9 @@ class DataService {
     
     return {
       total: machinesEtage.length,
-      fonctionnels: machinesEtage.filter(m => m.etat === 'Fonctionnel').length,
-      hs: machinesEtage.filter(m => m.etat === 'HS').length,
-      nonVerifies: machinesEtage.filter(m => m.etat === 'Non vérifié').length
+      fonctionnels: machinesEtage.filter(m => m.etat === MACHINE_STATES[0]).length,
+      hs: machinesEtage.filter(m => m.etat === MACHINE_STATES[1]).length,
+      nonVerifies: machinesEtage.filter(m => m.etat === MACHINE_STATES[2]).length
     };
   }
 
@@ -601,17 +585,17 @@ class DataService {
       
       if (data.machines && Array.isArray(data.machines)) {
         // Filtrer pour ne garder que les machines valides selon la liste actuelle
-        const validMachinesSet = new Set(allPacIds);
+        const validMachinesSet = new Set(ALL_PAC_IDS);
         const validMachines = data.machines.filter(machine => validMachinesSet.has(machine.id));
         
         // S'assurer que toutes les machines actuelles sont présentes
         const importedMachinesIds = new Set(validMachines.map(m => m.id));
-        allPacIds.forEach(id => {
+        ALL_PAC_IDS.forEach(id => {
           if (!importedMachinesIds.has(id)) {
             validMachines.push({
               id,
               etage: id.startsWith('T') ? 'Technique' : '4',
-              etat: 'Non vérifié',
+              etat: MACHINE_STATES[2], // Non vérifié
               derniereVerification: '-',
               maintenancePrevue: '-',
               notes: '',
@@ -628,7 +612,7 @@ class DataService {
       if (data.interventions && typeof data.interventions === 'object') {
         // Nettoyer les interventions pour les machines qui n'existent plus
         const validInterventions = {};
-        const validMachinesSet = new Set(allPacIds);
+        const validMachinesSet = new Set(ALL_PAC_IDS);
         
         Object.keys(data.interventions).forEach(machineId => {
           if (validMachinesSet.has(machineId)) {
@@ -643,7 +627,7 @@ class DataService {
       if (data.idHistory && typeof data.idHistory === 'object') {
         // Nettoyer l'historique pour les machines qui n'existent plus
         const validHistory = {};
-        const validMachinesSet = new Set(allPacIds);
+        const validMachinesSet = new Set(ALL_PAC_IDS);
         
         Object.keys(data.idHistory).forEach(machineId => {
           if (validMachinesSet.has(machineId)) {
@@ -652,7 +636,7 @@ class DataService {
         });
         
         // S'assurer que toutes les machines actuelles ont une entrée d'historique
-        allPacIds.forEach(id => {
+        ALL_PAC_IDS.forEach(id => {
           if (!validHistory[id]) {
             validHistory[id] = { entries: [] };
           }
@@ -674,10 +658,10 @@ class DataService {
    */
   resetAllData() {
     // Réinitialiser les machines à leur état par défaut
-    this.machines = allPacIds.map(id => ({
+    this.machines = ALL_PAC_IDS.map(id => ({
       id,
       etage: id.startsWith('T') ? 'Technique' : '4', // Étage Technique pour les TSGR, sinon étage 4
-      etat: 'Non vérifié',
+      etat: MACHINE_STATES[2], // Non vérifié
       derniereVerification: '-',
       maintenancePrevue: '-',
       notes: '',
@@ -690,7 +674,7 @@ class DataService {
     
     // Réinitialiser l'historique des identifiants
     this.idHistory = {};
-    allPacIds.forEach(id => {
+    ALL_PAC_IDS.forEach(id => {
       this.idHistory[id] = { entries: [] };
     });
     
