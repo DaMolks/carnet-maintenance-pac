@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Database, FileText, AlertTriangle, CheckCircle, Settings, Search,
-         Save, Upload, RefreshCw, Wrench } from 'lucide-react';
+         Save, Upload, RefreshCw, Wrench, FileBarChart } from 'lucide-react';
 
 // Importer le service de données
 import dataService from '../services/DataService';
@@ -12,6 +12,7 @@ import { formatDateToFrench, getTodayFrenchFormat } from '../utils/dateUtils';
 import EtageSection from './EtageSection';
 import MachineDetails from './MachineDetails';
 import MaintenanceCollectiveDetail from './MaintenanceCollectiveDetail';
+import ExportReport from './ExportReport';
 
 // Liste complète des étages disponibles
 const etages = ['4', 'Technique'];
@@ -55,6 +56,9 @@ const CarnetMaintenancePAC = () => {
     description: 'Maintenance filtres et filtres à tamis + essais de fonctionnement',
     technicien: ''
   });
+  
+  // État pour l'interface d'export de rapport
+  const [showExportReport, setShowExportReport] = useState(false);
   
   // Chargement initial des données
   useEffect(() => {
@@ -303,7 +307,7 @@ const CarnetMaintenancePAC = () => {
     }
   };
   
-  // Exporter les données
+  // Exporter les données en JSON
   const handleExport = () => {
     const jsonData = dataService.exportData();
     const blob = new Blob([jsonData], { type: 'application/json' });
@@ -351,6 +355,16 @@ const CarnetMaintenancePAC = () => {
     
     // Réinitialiser l'input file
     event.target.value = '';
+  };
+  
+  // Afficher l'interface d'export de rapport
+  const showExportReportModal = () => {
+    setShowExportReport(true);
+  };
+  
+  // Fermer l'interface d'export de rapport
+  const closeExportReportModal = () => {
+    setShowExportReport(false);
   };
   
   // Mettre à jour la liste des machines et les statistiques
@@ -504,11 +518,18 @@ const CarnetMaintenancePAC = () => {
                 <Wrench className="w-4 h-4 mr-1" /> Maintenance collective
               </button>
               <button 
+                onClick={showExportReportModal}
+                className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded flex items-center text-sm"
+                title="Générer rapport"
+              >
+                <FileBarChart className="w-4 h-4 mr-1" /> Rapport
+              </button>
+              <button 
                 onClick={handleExport}
                 className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded flex items-center text-sm"
                 title="Exporter les données"
               >
-                <Save className="w-4 h-4 mr-1" /> Exporter
+                <Save className="w-4 h-4 mr-1" /> Exporter JSON
               </button>
               <label className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded flex items-center text-sm cursor-pointer"
                      title="Importer des données">
@@ -664,6 +685,15 @@ const CarnetMaintenancePAC = () => {
           )}
         </div>
       </div>
+      
+      {/* Modal pour l'export de rapport */}
+      {showExportReport && (
+        <ExportReport
+          onClose={closeExportReportModal}
+          machines={machines}
+          etages={etages}
+        />
+      )}
     </div>
   );
 };
