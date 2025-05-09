@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { PlusCircle, Trash2, Tag, History } from 'lucide-react';
 
 // Liste des pannes courantes pour suggestion rapide (identique à MaintenanceCollectiveDetail)
@@ -30,10 +30,25 @@ const MachineDetails = ({
   onAddIntervention,
   onUpdateSerialNumber,
   onUpdateNeuronId,
+  onDeleteIdHistoryEntry,
   idHistory = {}
 }) => {
   const [showTags, setShowTags] = useState(false);
   const [showIdHistory, setShowIdHistory] = useState(false);
+  const [serialNumberInput, setSerialNumberInput] = useState(machine?.serialNumber || "");
+  const [neuronIdInput, setNeuronIdInput] = useState(machine?.neuronId || "");
+  
+  // Référence pour les inputs des identifiants techniques
+  const serialNumberRef = useRef(null);
+  const neuronIdRef = useRef(null);
+  
+  // Mise à jour de l'état local quand la machine change
+  React.useEffect(() => {
+    if (machine) {
+      setSerialNumberInput(machine.serialNumber || "");
+      setNeuronIdInput(machine.neuronId || "");
+    }
+  }, [machine]);
   
   // Ajouter un tag de panne courante à la description
   const addTagToDescription = (tag) => {
@@ -48,6 +63,29 @@ const MachineDetails = ({
     
     // Fermer la liste des tags
     setShowTags(false);
+  };
+  
+  // Gestion de la touche Entrée pour les inputs d'identifiants
+  const handleKeyDown = (e, field) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      // Mettre à jour la valeur selon le champ
+      if (field === 'serialNumber') {
+        onUpdateSerialNumber(machine.id, serialNumberInput);
+        serialNumberRef.current.blur();
+      } else if (field === 'neuronId') {
+        onUpdateNeuronId(machine.id, neuronIdInput);
+        neuronIdRef.current.blur();
+      }
+    }
+  };
+  
+  // Fonction pour supprimer une entrée de l'historique
+  const handleDeleteHistoryEntry = (idx) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette entrée de l\'historique ?')) {
+      onDeleteIdHistoryEntry(machine.id, idx);
+    }
   };
   
   if (!machine) return null;
@@ -118,20 +156,26 @@ const MachineDetails = ({
           <div>
             <p className="text-sm text-gray-500 mb-1">Numéro de série</p>
             <input
+              ref={serialNumberRef}
               type="text"
               className="w-full border rounded p-2"
-              value={machine.serialNumber || ""}
-              onChange={(e) => onUpdateSerialNumber(machine.id, e.target.value)}
+              value={serialNumberInput}
+              onChange={(e) => setSerialNumberInput(e.target.value)}
+              onBlur={() => onUpdateSerialNumber(machine.id, serialNumberInput)}
+              onKeyDown={(e) => handleKeyDown(e, 'serialNumber')}
               placeholder="Entrez le numéro de série"
             />
           </div>
           <div>
             <p className="text-sm text-gray-500 mb-1">Neuron ID</p>
             <input
+              ref={neuronIdRef}
               type="text"
               className="w-full border rounded p-2"
-              value={machine.neuronId || ""}
-              onChange={(e) => onUpdateNeuronId(machine.id, e.target.value)}
+              value={neuronIdInput}
+              onChange={(e) => setNeuronIdInput(e.target.value)}
+              onBlur={() => onUpdateNeuronId(machine.id, neuronIdInput)}
+              onKeyDown={(e) => handleKeyDown(e, 'neuronId')}
               placeholder="Entrez le Neuron ID"
             />
           </div>
@@ -151,6 +195,7 @@ const MachineDetails = ({
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valeur précédente</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nouvelle valeur</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilisateur</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -161,6 +206,15 @@ const MachineDetails = ({
                         <td className="px-4 py-2">{entry.oldValue || "-"}</td>
                         <td className="px-4 py-2">{entry.newValue}</td>
                         <td className="px-4 py-2 whitespace-nowrap">{entry.user || "-"}</td>
+                        <td className="px-4 py-2 whitespace-nowrap">
+                          <button
+                            className="text-red-600 hover:text-red-800"
+                            onClick={() => handleDeleteHistoryEntry(idx)}
+                            title="Supprimer cette entrée d'historique"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
