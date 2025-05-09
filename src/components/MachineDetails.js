@@ -1,20 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { PlusCircle, Trash2, Tag, History } from 'lucide-react';
 
-// Liste des pannes courantes pour suggestion rapide (identique à MaintenanceCollectiveDetail)
-const TAGS_PANNES_COURANTES = [
-  "Ventilateur HS", 
-  "Compresseur HS", 
-  "Fusible HS", 
-  "Non communiquant", 
-  "Filtre sale", 
-  "Filtre à tamis obstrué", 
-  "Régulateur HS", 
-  "Mauvais zoning", 
-  "Problème condensats", 
-  "Sonde t° HS", 
-  "Non opérable via GTB"
-];
+// Importer les constantes
+import { TAGS_PANNES_COURANTES, INTERVENTION_TYPES } from '../constants/config';
 
 /**
  * Composant affichant les détails d'une machine et ses interventions
@@ -86,6 +74,13 @@ const MachineDetails = ({
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette entrée de l\'historique ?')) {
       onDeleteIdHistoryEntry(machine.id, idx);
     }
+  };
+  
+  // Gérer le clic sur l'icône de tags
+  const handleTagClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowTags(!showTags);
   };
   
   if (!machine) return null;
@@ -311,10 +306,9 @@ const MachineDetails = ({
                 type: e.target.value
               })}
             >
-              <option>Maintenance</option>
-              <option>Réparation</option>
-              <option>Inspection</option>
-              <option>Remplacement</option>
+              {INTERVENTION_TYPES.map((type, index) => (
+                <option key={index} value={type}>{type}</option>
+              ))}
             </select>
           </div>
           <div className="col-span-2 relative">
@@ -330,8 +324,9 @@ const MachineDetails = ({
                 })}
               />
               <button
+                type="button"
                 className="ml-2 p-2 bg-gray-100 hover:bg-gray-200 rounded"
-                onClick={() => setShowTags(!showTags)}
+                onClick={handleTagClick}
                 title="Tags de pannes courantes"
               >
                 <Tag size={20} />
@@ -345,6 +340,7 @@ const MachineDetails = ({
                   {TAGS_PANNES_COURANTES.map((tag, index) => (
                     <button
                       key={index}
+                      type="button"
                       className="text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
                       onClick={() => addTagToDescription(tag)}
                     >
@@ -369,6 +365,7 @@ const MachineDetails = ({
           </div>
           <div className="flex items-end">
             <button
+              type="button"
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"
               onClick={onAddIntervention}
               disabled={!nouvelleIntervention.description}
