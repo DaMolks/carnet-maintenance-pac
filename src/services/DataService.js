@@ -11,15 +11,15 @@ const STORAGE_KEY_MACHINES = 'carnet_maintenance_pac_machines_v2';
 const STORAGE_KEY_INTERVENTIONS = 'carnet_maintenance_pac_interventions_v2';
 const STORAGE_KEY_ID_HISTORY = 'carnet_maintenance_pac_id_history_v1';
 
-// Liste de tous les identifiants de PAC (tous sur l'étage 4 comme indiqué)
+// Liste mise à jour des identifiants de PAC selon les machines existantes
 const allPacIds = [
-  'A0101', 'A0102', 'A0103', 'A0103b', 'A0104', 'A0105', 'A0106', 'A0107', 'A0108',
+  'A0101', 'A0102', 'A0103', 'A0104', 'A0105', 'A0106', 'A0107', 'A0108',
   'A0201', 'A0202', 'A0203', 'A0204', 'A0205', 'A0206', 'A0207', 'A0208',
-  'A0301', 'A0302', 'A0303', 'A0304', 'A0305', 'A0306', 'A0306b', 'A0307', 'A0308',
-  'A0401b', 'A0401', 'A0402', 'A0403', 'A0404', 'A0405', 'A0406', 'A0407', 'A0408', 'A0409', 'A0410', 'A0411', 'A0412',
-  'A0501', 'A0502', 'A0503', 'A0504', 'A0505', 'A0506', 'A0507', 'A0507b', 'A0508', 'A0509', 'A0510', 'A0511', 'A0512', 'A0513', 'A0514', 'A0515', 'A0516',
-  'A0601', 'A0602', 'A0603', 'A0604', 'A0605', 'A0606', 'A0606b', 'A0607', 'A0608', 'A0609', 'A0610', 'A0611', 'A0612',
-  'TSGR1', 'TSGR2', 'TSGR3', 'TSGR4'
+  'A0301', 'A0302', 'A0303', 'A0304', 'A0305', 'A0306', 'A0307', 'A0308',
+  'A0401b', 'A0401', 'A0402', 'A0403', 'A0404', 'A0405', 'A0406',
+  'A0501', 'A0502', 'A0503', 'A0504', 'A0505', 'A0506', 'A0507', 'A0508',
+  'A0601', 'A0602', 'A0603', 'A0604', 'A0605', 'A0606', 'A0606b',
+  'TSGR1', 'TSGR2', 'TSGR3'
 ];
 
 class DataService {
@@ -42,7 +42,36 @@ class DataService {
       const storedMachines = localStorage.getItem(STORAGE_KEY_MACHINES);
       
       if (storedMachines) {
-        return JSON.parse(storedMachines);
+        // Filtrer les machines stockées pour ne garder que celles qui sont dans la liste mise à jour
+        const parsedMachines = JSON.parse(storedMachines);
+        const validMachines = parsedMachines.filter(machine => allPacIds.includes(machine.id));
+        
+        // Si le nombre de machines a changé, mettre à jour le stockage
+        if (validMachines.length !== parsedMachines.length) {
+          console.log(`Mise à jour des machines : ${parsedMachines.length} -> ${validMachines.length}`);
+          
+          // Ajouter les nouvelles machines qui pourraient manquer
+          const existingIds = new Set(validMachines.map(m => m.id));
+          allPacIds.forEach(id => {
+            if (!existingIds.has(id)) {
+              validMachines.push({
+                id,
+                etage: id.startsWith('T') ? 'Technique' : '4',
+                etat: 'Non vérifié',
+                derniereVerification: '-',
+                maintenancePrevue: '-',
+                notes: '',
+                serialNumber: '',
+                neuronId: ''
+              });
+            }
+          });
+          
+          localStorage.setItem(STORAGE_KEY_MACHINES, JSON.stringify(validMachines));
+          return validMachines;
+        }
+        
+        return parsedMachines;
       }
       
       // Si aucune donnée n'existe, initialiser avec la liste complète des machines
@@ -79,7 +108,17 @@ class DataService {
       const storedInterventions = localStorage.getItem(STORAGE_KEY_INTERVENTIONS);
       
       if (storedInterventions) {
-        return JSON.parse(storedInterventions);
+        const parsedInterventions = JSON.parse(storedInterventions);
+        
+        // Nettoyer les interventions pour les machines qui n'existent plus
+        const validMachineIds = new Set(allPacIds);
+        Object.keys(parsedInterventions).forEach(machineId => {
+          if (!validMachineIds.has(machineId)) {
+            delete parsedInterventions[machineId];
+          }
+        });
+        
+        return parsedInterventions;
       }
       
       // Si aucune donnée n'existe, initialiser avec un objet vide (pas d'exemples)
@@ -101,7 +140,24 @@ class DataService {
       const storedHistory = localStorage.getItem(STORAGE_KEY_ID_HISTORY);
       
       if (storedHistory) {
-        return JSON.parse(storedHistory);
+        const parsedHistory = JSON.parse(storedHistory);
+        
+        // Nettoyer l'historique pour les machines qui n'existent plus
+        const validMachineIds = new Set(allPacIds);
+        Object.keys(parsedHistory).forEach(machineId => {
+          if (!validMachineIds.has(machineId)) {
+            delete parsedHistory[machineId];
+          }
+        });
+        
+        // S'assurer que toutes les machines actuelles ont une entrée d'historique
+        allPacIds.forEach(id => {
+          if (!parsedHistory[id]) {
+            parsedHistory[id] = { entries: [] };
+          }
+        });
+        
+        return parsedHistory;
       }
       
       // Si aucune donnée n'existe, initialiser avec un objet vide
@@ -109,9 +165,7 @@ class DataService {
       
       // Pour chaque machine, créer une entrée vide
       allPacIds.forEach(id => {
-        defaultHistory[id] = {
-          entries: []
-        };
+        defaultHistory[id] = { entries: [] };
       });
       
       localStorage.setItem(STORAGE_KEY_ID_HISTORY, JSON.stringify(defaultHistory));
@@ -524,17 +578,65 @@ class DataService {
       const data = JSON.parse(jsonData);
       
       if (data.machines && Array.isArray(data.machines)) {
-        this.machines = data.machines;
+        // Filtrer pour ne garder que les machines valides selon la liste actuelle
+        const validMachinesSet = new Set(allPacIds);
+        const validMachines = data.machines.filter(machine => validMachinesSet.has(machine.id));
+        
+        // S'assurer que toutes les machines actuelles sont présentes
+        const importedMachinesIds = new Set(validMachines.map(m => m.id));
+        allPacIds.forEach(id => {
+          if (!importedMachinesIds.has(id)) {
+            validMachines.push({
+              id,
+              etage: id.startsWith('T') ? 'Technique' : '4',
+              etat: 'Non vérifié',
+              derniereVerification: '-',
+              maintenancePrevue: '-',
+              notes: '',
+              serialNumber: '',
+              neuronId: ''
+            });
+          }
+        });
+        
+        this.machines = validMachines;
         this._saveMachines();
       }
       
       if (data.interventions && typeof data.interventions === 'object') {
-        this.interventions = data.interventions;
+        // Nettoyer les interventions pour les machines qui n'existent plus
+        const validInterventions = {};
+        const validMachinesSet = new Set(allPacIds);
+        
+        Object.keys(data.interventions).forEach(machineId => {
+          if (validMachinesSet.has(machineId)) {
+            validInterventions[machineId] = data.interventions[machineId];
+          }
+        });
+        
+        this.interventions = validInterventions;
         this._saveInterventions();
       }
       
       if (data.idHistory && typeof data.idHistory === 'object') {
-        this.idHistory = data.idHistory;
+        // Nettoyer l'historique pour les machines qui n'existent plus
+        const validHistory = {};
+        const validMachinesSet = new Set(allPacIds);
+        
+        Object.keys(data.idHistory).forEach(machineId => {
+          if (validMachinesSet.has(machineId)) {
+            validHistory[machineId] = data.idHistory[machineId];
+          }
+        });
+        
+        // S'assurer que toutes les machines actuelles ont une entrée d'historique
+        allPacIds.forEach(id => {
+          if (!validHistory[id]) {
+            validHistory[id] = { entries: [] };
+          }
+        });
+        
+        this.idHistory = validHistory;
         this._saveIdHistory();
       }
       
