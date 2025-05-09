@@ -203,282 +203,320 @@ const MaintenanceCollectiveDetail = ({
         </div>
       </div>
       
-      {/* Section formulaire */}
-      <div className="bg-white rounded-lg shadow p-4 mb-4 mx-4">
-        <h3 className="text-lg font-medium mb-4">Informations de l'intervention</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Date</label>
-            <input
-              type="text"
-              className="w-full border rounded p-2"
-              placeholder="JJ/MM/AAAA"
-              value={intervention.date}
-              onChange={(e) => setIntervention({
-                ...intervention,
-                date: e.target.value
-              })}
-            />
+      {/* Corps principal - Mise en page à deux colonnes 1/3 - 2/3 */}
+      <div className="flex flex-1 overflow-hidden mx-4 mb-4">
+        {/* Colonne gauche (1/3) - Liste des machines */}
+        <div className="w-1/3 pr-4 overflow-auto">
+          <div className="bg-white rounded-lg shadow p-4 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-medium">Machines ({machinesFiltrees.length})</h3>
+              <div className="flex space-x-2">
+                <button
+                  className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-xs flex items-center"
+                  onClick={toggleSelectAll}
+                  title={machinesFiltrees.some(m => m.selected) ? "Désélectionner tout" : "Sélectionner tout"}
+                >
+                  {machinesFiltrees.some(m => m.selected) ? (
+                    <Square className="w-3 h-3 mr-1" />
+                  ) : (
+                    <CheckSquare className="w-3 h-3 mr-1" />
+                  )}
+                </button>
+              </div>
+            </div>
+            
+            {/* Filtres */}
+            <div className="mb-3">
+              <div className="flex items-center mb-2">
+                <Filter className="text-gray-500 mr-2" size={14} />
+                <select 
+                  className="border rounded p-1 text-sm w-full"
+                  value={etageFiltre}
+                  onChange={(e) => setEtageFiltre(e.target.value)}
+                >
+                  <option value="Tous">Tous les étages</option>
+                  {etages.map(etage => (
+                    <option key={etage} value={etage}>{etage}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="flex items-center mb-2">
+                <select 
+                  className="border rounded p-1 text-sm w-full"
+                  value={etatFiltre}
+                  onChange={(e) => setEtatFiltre(e.target.value)}
+                >
+                  <option value="Tous">Tous les états</option>
+                  <option value="Fonctionnel">Fonctionnel</option>
+                  <option value="HS">HS</option>
+                  <option value="Non vérifié">Non vérifié</option>
+                </select>
+              </div>
+              
+              <div className="flex items-center">
+                <Search className="w-4 h-4 mr-2 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Rechercher..."
+                  className="border rounded p-1 text-sm w-full"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            {/* Liste déroulante des machines */}
+            <div className="overflow-auto max-h-[calc(100vh-350px)]">
+              {machinesFiltrees.length > 0 ? (
+                <div className="grid gap-2">
+                  {machinesFiltrees.map(machine => (
+                    <div 
+                      key={machine.id}
+                      className={`p-2 border rounded flex items-center ${ 
+                        machine.selected ? 'bg-orange-50 border-orange-300' : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => toggleMachine(machine.id)}
+                    >
+                      <div className="mr-2">
+                        {machine.selected ? (
+                          <CheckSquare className="w-5 h-5 text-orange-500" />
+                        ) : (
+                          <Square className="w-5 h-5 text-gray-400" />
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium truncate">{machine.id}</span>
+                          <span className={`ml-2 px-1.5 py-0.5 text-xs rounded ${ 
+                            machine.etat === 'Fonctionnel' ? 'bg-green-100 text-green-800' :
+                            machine.etat === 'HS' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {machine.etat}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          Étage: {machine.etage}
+                          {machinesTags[machine.id] && (
+                            <span className="ml-2 text-blue-600">Tags: {machinesTags[machine.id]}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4 text-sm">Aucune machine ne correspond aux critères.</p>
+              )}
+            </div>
           </div>
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Technicien</label>
-            <input
-              type="text"
-              className="w-full border rounded p-2"
-              placeholder="Nom du technicien"
-              value={intervention.technicien}
-              onChange={(e) => setIntervention({
-                ...intervention,
-                technicien: e.target.value
-              })}
-            />
+        </div>
+        
+        {/* Colonne droite (2/3) - Options, détails et actions */}
+        <div className="w-2/3 overflow-auto">
+          {/* Informations de l'intervention */}
+          <div className="bg-white rounded-lg shadow p-4 mb-4">
+            <h3 className="text-lg font-medium mb-4">Informations de l'intervention</h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Date</label>
+                <input
+                  type="text"
+                  className="w-full border rounded p-2"
+                  placeholder="JJ/MM/AAAA"
+                  value={intervention.date}
+                  onChange={(e) => setIntervention({
+                    ...intervention,
+                    date: e.target.value
+                  })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Technicien</label>
+                <input
+                  type="text"
+                  className="w-full border rounded p-2"
+                  placeholder="Nom du technicien"
+                  value={intervention.technicien}
+                  onChange={(e) => setIntervention({
+                    ...intervention,
+                    technicien: e.target.value
+                  })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Type d'intervention</label>
+                <select
+                  className="w-full border rounded p-2"
+                  value={intervention.type}
+                  onChange={(e) => setIntervention({
+                    ...intervention,
+                    type: e.target.value
+                  })}
+                >
+                  <option value="Maintenance">Maintenance</option>
+                  <option value="Réparation">Réparation</option>
+                  <option value="Inspection">Inspection</option>
+                  <option value="Remplacement">Remplacement</option>
+                </select>
+              </div>
+              <div className="col-span-2 relative">
+                <label className="block text-sm text-gray-700 mb-1">Description générale</label>
+                <div className="flex">
+                  <textarea
+                    className="flex-1 border rounded p-2"
+                    rows="2"
+                    placeholder="Description de l'intervention commune à toutes les machines"
+                    value={intervention.description}
+                    onChange={(e) => setIntervention({
+                      ...intervention,
+                      description: e.target.value
+                    })}
+                  />
+                  <button
+                    className="ml-2 p-2 bg-gray-100 hover:bg-gray-200 rounded"
+                    onClick={() => setShowTags(!showTags)}
+                    title="Tags de pannes courantes pour toutes les machines"
+                  >
+                    <Tag size={20} />
+                  </button>
+                </div>
+                
+                {/* Liste des tags de pannes courantes pour la description générale */}
+                {showTags && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border rounded-md shadow-lg p-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      {TAGS_PANNES_COURANTES.map((tag, index) => (
+                        <button
+                          key={index}
+                          className="text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                          onClick={() => addTagToDescription(tag)}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Type d'intervention</label>
-            <select
-              className="w-full border rounded p-2"
-              value={intervention.type}
-              onChange={(e) => setIntervention({
-                ...intervention,
-                type: e.target.value
-              })}
-            >
-              <option value="Maintenance">Maintenance</option>
-              <option value="Réparation">Réparation</option>
-              <option value="Inspection">Inspection</option>
-              <option value="Remplacement">Remplacement</option>
-            </select>
-          </div>
-          <div className="md:col-span-2 relative">
-            <label className="block text-sm text-gray-700 mb-1">Description générale</label>
-            <div className="flex">
-              <textarea
-                className="flex-1 border rounded p-2"
-                rows="2"
-                placeholder="Description de l'intervention commune à toutes les machines"
-                value={intervention.description}
-                onChange={(e) => setIntervention({
-                  ...intervention,
-                  description: e.target.value
-                })}
-              />
+          
+          {/* Actions pour les machines sélectionnées */}
+          <div className="bg-white rounded-lg shadow p-4 mb-4">
+            <h3 className="text-lg font-medium mb-4">Actions pour les machines sélectionnées</h3>
+            
+            <div className="flex flex-wrap gap-3 mb-4">
               <button
-                className="ml-2 p-2 bg-gray-100 hover:bg-gray-200 rounded"
-                onClick={() => setShowTags(!showTags)}
-                title="Tags de pannes courantes pour toutes les machines"
+                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded flex items-center"
+                onClick={() => setSelectedMachinesStatus('Fonctionnel')}
+                disabled={selectedCount === 0}
               >
-                <Tag size={20} />
+                <Check className="w-5 h-5 mr-2" />
+                Marquer fonctionnel
+              </button>
+              <button
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded flex items-center"
+                onClick={() => setSelectedMachinesStatus('HS')}
+                disabled={selectedCount === 0}
+              >
+                <X className="w-5 h-5 mr-2" />
+                Marquer HS
               </button>
             </div>
             
-            {/* Liste des tags de pannes courantes pour la description générale */}
-            {showTags && (
-              <div className="absolute z-10 mt-1 w-full bg-white border rounded-md shadow-lg p-2">
-                <div className="grid grid-cols-2 gap-2">
-                  {TAGS_PANNES_COURANTES.map((tag, index) => (
-                    <button
-                      key={index}
-                      className="text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
-                      onClick={() => addTagToDescription(tag)}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
+            {/* Tableau des machines sélectionnées avec leurs états */}
+            {selectedCount > 0 && (
+              <div className="overflow-auto max-h-[calc(100vh-450px)]">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Machine</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">État actuel</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nouvel état</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tags spécifiques</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {machinesStatus
+                      .filter(machine => machine.selected)
+                      .map(machine => (
+                        <tr key={machine.id}>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm">
+                            <div className="font-medium">{machine.id}</div>
+                            <div className="text-xs text-gray-500">Étage: {machine.etage}</div>
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm">
+                            <span className={`px-2 py-0.5 rounded ${ 
+                              machine.etat === 'Fonctionnel' ? 'bg-green-100 text-green-800' :
+                              machine.etat === 'HS' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {machine.etat}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm">
+                            <select
+                              className={`border rounded p-1 ${ 
+                                machine.newStatus === 'Fonctionnel' ? 'bg-green-50 border-green-200' :
+                                machine.newStatus === 'HS' ? 'bg-red-50 border-red-200' :
+                                'bg-gray-50'
+                              }`}
+                              value={machine.newStatus}
+                              onChange={(e) => setMachineNewStatus(machine.id, e.target.value)}
+                            >
+                              <option value="Fonctionnel">Fonctionnel</option>
+                              <option value="HS">HS</option>
+                              <option value="Non vérifié">Non vérifié</option>
+                            </select>
+                          </td>
+                          <td className="px-3 py-2 text-sm">
+                            <div className="flex items-center">
+                              <span className="mr-2 truncate max-w-[200px]">
+                                {machinesTags[machine.id] || '-'}
+                              </span>
+                              <div className="relative">
+                                <button
+                                  className="p-1 bg-gray-100 hover:bg-gray-200 rounded"
+                                  onClick={() => setActiveTagMachine(activeTagMachine === machine.id ? null : machine.id)}
+                                  title="Ajouter un tag spécifique"
+                                >
+                                  <Tag size={16} />
+                                </button>
+                                
+                                {activeTagMachine === machine.id && (
+                                  <div className="absolute z-10 right-0 mt-1 w-64 bg-white border rounded-md shadow-lg p-2">
+                                    <div className="grid grid-cols-1 gap-1">
+                                      {TAGS_PANNES_COURANTES.map((tag, index) => (
+                                        <button
+                                          key={index}
+                                          className="text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                                          onClick={() => addTagToMachine(machine.id, tag)}
+                                        >
+                                          {tag}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
             )}
-          </div>
-        </div>
-      </div>
-      
-      {/* Filtres et actions */}
-      <div className="bg-white rounded-lg shadow p-4 mb-4 mx-4">
-        <div className="flex flex-wrap justify-between items-center gap-4">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center">
-              <Filter className="text-gray-500 mr-2" size={16} />
-              <label className="mr-2 text-gray-700 text-sm">Étage:</label>
-              <select 
-                className="border rounded p-1"
-                value={etageFiltre}
-                onChange={(e) => setEtageFiltre(e.target.value)}
-              >
-                <option value="Tous">Tous</option>
-                {etages.map(etage => (
-                  <option key={etage} value={etage}>{etage}</option>
-                ))}
-              </select>
-            </div>
             
-            <div className="flex items-center">
-              <label className="mr-2 text-gray-700 text-sm">État:</label>
-              <select 
-                className="border rounded p-1"
-                value={etatFiltre}
-                onChange={(e) => setEtatFiltre(e.target.value)}
-              >
-                <option value="Tous">Tous</option>
-                <option value="Fonctionnel">Fonctionnel</option>
-                <option value="HS">HS</option>
-                <option value="Non vérifié">Non vérifié</option>
-              </select>
-            </div>
-            
-            <div className="flex items-center">
-              <Search className="w-4 h-4 mr-2 text-gray-500" />
-              <input
-                type="text"
-                placeholder="Rechercher..."
-                className="border rounded p-1"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+            {selectedCount === 0 && (
+              <p className="text-gray-500 text-center py-8">
+                Sélectionnez des machines dans la liste pour les afficher ici.
+              </p>
+            )}
           </div>
-          
-          <div className="flex flex-wrap gap-2">
-            <button
-              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm flex items-center"
-              onClick={toggleSelectAll}
-            >
-              {machinesFiltrees.some(m => m.selected) ? (
-                <>
-                  <Square className="w-4 h-4 mr-1" />
-                  Désélectionner tout
-                </>
-              ) : (
-                <>
-                  <CheckSquare className="w-4 h-4 mr-1" />
-                  Sélectionner tout
-                </>
-              )}
-            </button>
-            <button
-              className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-sm flex items-center"
-              onClick={() => setSelectedMachinesStatus('Fonctionnel')}
-              disabled={selectedCount === 0}
-            >
-              <Check className="w-4 h-4 mr-1" />
-              Marquer fonctionnel
-            </button>
-            <button
-              className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm flex items-center"
-              onClick={() => setSelectedMachinesStatus('HS')}
-              disabled={selectedCount === 0}
-            >
-              <X className="w-4 h-4 mr-1" />
-              Marquer HS
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      {/* Liste des machines */}
-      <div className="flex-1 overflow-auto mx-4 bg-white rounded-lg shadow">
-        <div className="p-4">
-          <h3 className="text-lg font-medium mb-4">Machines ({machinesFiltrees.length})</h3>
-          
-          {machinesFiltrees.length > 0 ? (
-            <div className="grid gap-3">
-              {machinesFiltrees.map(machine => (
-                <div 
-                  key={machine.id}
-                  className={`p-3 border rounded flex items-center ${ 
-                    machine.selected ? 'bg-orange-50 border-orange-300' : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <div 
-                    className="mr-3 cursor-pointer"
-                    onClick={() => toggleMachine(machine.id)}
-                  >
-                    {machine.selected ? (
-                      <CheckSquare className="w-5 h-5 text-orange-500" />
-                    ) : (
-                      <Square className="w-5 h-5 text-gray-400" />
-                    )}
-                  </div>
-                  
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <span className="font-medium">{machine.id}</span>
-                      <span className="text-gray-500 text-sm">{machine.etage}</span>
-                    </div>
-                    {machine.notes && (
-                      <p className="text-sm text-gray-600 mt-1 truncate">{machine.notes}</p>
-                    )}
-                    {/* Afficher les tags spécifiques à cette machine s'ils existent */}
-                    {machinesTags[machine.id] && (
-                      <p className="text-sm text-blue-600 mt-1">Problèmes spécifiques: {machinesTags[machine.id]}</p>
-                    )}
-                  </div>
-                  
-                  <div className="ml-4 flex items-center">
-                    <span className="mr-2 text-sm">État actuel:</span>
-                    <span className={`px-2 py-0.5 rounded text-sm ${
-                      machine.etat === 'Fonctionnel' ? 'bg-green-100 text-green-800' :
-                      machine.etat === 'HS' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {machine.etat}
-                    </span>
-                  </div>
-                  
-                  <div className="ml-4">
-                    <span className="mr-2 text-sm">Nouvel état:</span>
-                    <select
-                      className={`border rounded p-1 ${
-                        machine.newStatus === 'Fonctionnel' ? 'bg-green-50 border-green-200' :
-                        machine.newStatus === 'HS' ? 'bg-red-50 border-red-200' :
-                        'bg-gray-50'
-                      }`}
-                      value={machine.newStatus}
-                      onChange={(e) => setMachineNewStatus(machine.id, e.target.value)}
-                    >
-                      <option value="Fonctionnel">Fonctionnel</option>
-                      <option value="HS">HS</option>
-                      <option value="Non vérifié">Non vérifié</option>
-                    </select>
-                  </div>
-                  
-                  {/* Nouveau bouton de tag par machine */}
-                  <div className="ml-4 relative">
-                    <button
-                      className="p-1 bg-gray-100 hover:bg-gray-200 rounded"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveTagMachine(activeTagMachine === machine.id ? null : machine.id);
-                      }}
-                      title="Tags de pannes spécifiques à cette machine"
-                    >
-                      <Tag size={16} />
-                    </button>
-                    
-                    {/* Afficher les tags disponibles si cette machine est active */}
-                    {activeTagMachine === machine.id && (
-                      <div className="absolute z-10 right-0 mt-1 w-64 bg-white border rounded-md shadow-lg p-2">
-                        <div className="grid grid-cols-1 gap-1">
-                          {TAGS_PANNES_COURANTES.map((tag, index) => (
-                            <button
-                              key={index}
-                              className="text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                addTagToMachine(machine.id, tag);
-                              }}
-                            >
-                              {tag}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center py-8">Aucune machine ne correspond aux critères de recherche.</p>
-          )}
         </div>
       </div>
       
