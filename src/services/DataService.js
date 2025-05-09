@@ -331,6 +331,28 @@ class DataService {
   }
   
   /**
+   * Supprime une entrée de l'historique des identifiants
+   * @param {string} machineId Identifiant de la machine
+   * @param {number} index Index de l'entrée à supprimer
+   * @returns {boolean} Succès de l'opération
+   */
+  deleteIdHistoryEntry(machineId, index) {
+    // Vérifier que la machine et l'entrée existent
+    if (!this.idHistory[machineId] || 
+        !this.idHistory[machineId].entries || 
+        index >= this.idHistory[machineId].entries.length) {
+      return false;
+    }
+    
+    // Supprimer l'entrée à l'index spécifié
+    this.idHistory[machineId].entries.splice(index, 1);
+    
+    // Sauvegarder l'historique
+    this._saveIdHistory();
+    return true;
+  }
+  
+  /**
    * Récupère l'historique des modifications d'identifiants pour une machine
    * @param {string} id Identifiant de la machine
    * @returns {Object} Historique des modifications ou objet vide si aucun
