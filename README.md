@@ -53,6 +53,13 @@ npm start
 
 Le serveur répond par défaut sur [http://localhost:3001](http://localhost:3001).
 
+Il initialise une base SQLite avec les données de `server/data/machines.json`.
+
+#### API disponible
+
+- `GET /api/machines` – liste toutes les machines avec leur historique d'interventions
+- `GET /api/machines/:id` – détail d'une machine par identifiant
+
 ## 📱 Captures d'écran
 
 <div align="center">
