@@ -43,6 +43,16 @@ npm start
 
 L'application sera disponible à l'adresse [http://localhost:3000](http://localhost:3000).
 
+### Démarrer le serveur backend
+
+```bash
+cd server
+npm install
+npm start
+```
+
+Le serveur répond par défaut sur [http://localhost:3001](http://localhost:3001).
+
 ## 📱 Captures d'écran
 
 <div align="center">
@@ -58,6 +68,7 @@ L'application sera disponible à l'adresse [http://localhost:3000](http://localh
 ```
 carnet-maintenance-pac/
 ├── public/                # Fichiers accessibles publiquement
+├── server/                # Serveur Express pour l'API
 ├── src/                   # Code source de l'application
 │   ├── components/        # Composants React réutilisables
 │   ├── data/              # Données et structures de données
