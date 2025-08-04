@@ -54,5 +54,9 @@ export const getTodayFrenchFormat = () => {
  * @returns {string} - Date actuelle au format ISO
  */
 export const getTodayISOFormat = () => {
-  return new Date().toISOString().split('T')[0];
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const year = today.getFullYear();
+  return `${year}-${month}-${day}`;
 };

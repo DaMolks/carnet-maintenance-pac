@@ -43,6 +43,24 @@ npm start
 
 L'application sera disponible à l'adresse [http://localhost:3000](http://localhost:3000).
 
+### Démarrer le serveur backend
+
+```bash
+cd server
+npm install
+npm start
+```
+
+Le serveur répond par défaut sur [http://localhost:3001](http://localhost:3001).
+Il initialise une base SQLite avec les données de `server/data/machines.json`.
+
+Une interface dans le client permet de sélectionner l'URL du serveur et de détecter les instances locales disponibles.
+
+#### API disponible
+
+- `GET /api/machines` – liste toutes les machines avec leur historique d'interventions
+- `GET /api/machines/:id` – détail d'une machine par identifiant
+
 ## 📱 Captures d'écran
 
 <div align="center">
@@ -58,6 +76,7 @@ L'application sera disponible à l'adresse [http://localhost:3000](http://localh
 ```
 carnet-maintenance-pac/
 ├── public/                # Fichiers accessibles publiquement
+├── server/                # Serveur Express pour l'API
 ├── src/                   # Code source de l'application
 │   ├── components/        # Composants React réutilisables
 │   ├── data/              # Données et structures de données
