@@ -4,14 +4,14 @@ import { fetchMachines } from '../services/MachineApi';
 /**
  * Affiche la liste des machines récupérées depuis l'API backend
  */
-const MachineCatalog = () => {
+const MachineCatalog = ({ apiServer }) => {
   const [machines, setMachines] = useState([]);
 
   useEffect(() => {
     fetchMachines()
       .then(setMachines)
       .catch(err => console.error('Erreur de chargement des machines', err));
-  }, []);
+  }, [apiServer]);
 
   return (
     <div className="p-4">
