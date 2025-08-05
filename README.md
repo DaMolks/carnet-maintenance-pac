@@ -57,7 +57,6 @@ Il initialise une base SQLite avec les données de `server/data/machines.json`.
 
 Une interface dans le client permet de sélectionner l'URL du serveur et de détecter les instances locales disponibles.
 
-
 #### API disponible
 
 - `GET /api/machines` – liste toutes les machines avec leur historique d'interventions
